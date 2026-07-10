@@ -10,7 +10,6 @@ from __future__ import annotations
 import heapq
 from dataclasses import dataclass
 
-from sssp_lab.algorithms.dijkstra_binary_heap import dijkstra
 from sssp_lab.graph import Edge, Graph, Node
 
 
@@ -32,6 +31,7 @@ class CHIndex:
     downward: Graph
     rank: dict[Node, int]
     shortcuts: tuple[Shortcut, ...]
+    shortcut_lookup: dict[tuple[Node, Node], Shortcut]
 
 
 def _without_node(graph: Graph, blocked: Node) -> Graph:
@@ -49,18 +49,73 @@ def _incoming_edges(graph: Graph, node: Node) -> list[Edge]:
     return [edge for edge in graph.iter_edges() if edge.target == node]
 
 
-def build_ch_index(graph: Graph, order: list[Node] | tuple[Node, ...] | None = None) -> CHIndex:
+def contraction_order(graph: Graph, *, heuristic: str = "degree") -> tuple[Node, ...]:
+    """Return an educational contraction order for small graphs."""
+
+    incoming_counts = {node: 0 for node in graph.nodes}
+    for edge in graph.iter_edges():
+        incoming_counts[edge.target] += 1
+
+    def key(node: Node) -> tuple[int, int]:
+        outgoing = len(graph.neighbors(node))
+        incoming = incoming_counts[node]
+        if heuristic == "degree":
+            score = incoming + outgoing
+        elif heuristic == "edge_difference":
+            score = (incoming * outgoing) - incoming - outgoing
+        elif heuristic == "contracted_neighbor_count":
+            score = len({edge.target for edge in graph.neighbors(node)}) + incoming
+        elif heuristic == "shortcut_cover":
+            score = incoming * outgoing
+        elif heuristic == "level":
+            score = max(incoming, outgoing)
+        else:
+            raise ValueError(f"unknown contraction heuristic: {heuristic}")
+        return (score, node)
+
+    return tuple(sorted(graph.nodes, key=key))
+
+
+def _bounded_witness_distance(graph: Graph, source: Node, target: Node, bound: float) -> float:
+    """Return a witness distance, stopping once labels exceed ``bound``."""
+
+    distances = {node: float("inf") for node in graph.nodes}
+    distances[source] = 0.0
+    queue: list[tuple[float, Node]] = [(0.0, source)]
+    while queue:
+        distance, node = heapq.heappop(queue)
+        if distance != distances[node]:
+            continue
+        if distance > bound:
+            return float("inf")
+        if node == target:
+            return distance
+        for edge in graph.neighbors(node):
+            candidate = distance + edge.weight
+            if candidate < distances[edge.target] and candidate <= bound:
+                distances[edge.target] = candidate
+                heapq.heappush(queue, (candidate, edge.target))
+    return distances[target]
+
+
+def build_ch_index(
+    graph: Graph,
+    order: list[Node] | tuple[Node, ...] | None = None,
+    *,
+    heuristic: str = "degree",
+) -> CHIndex:
     """Build a small-graph contraction hierarchy.
 
     Args:
         graph: Directed or undirected graph with non-negative weights.
         order: Optional contraction order. If omitted, nodes are contracted by
-            increasing degree.
+            the selected heuristic.
+        heuristic: Educational order heuristic used when ``order`` is omitted.
     """
 
     graph.require_non_negative_weights()
     if order is None:
-        order = tuple(sorted(graph.nodes, key=lambda n: len(graph.neighbors(n))))
+        order = contraction_order(graph, heuristic=heuristic)
     if set(order) != set(graph.nodes):
         raise ValueError("order must contain exactly the graph nodes")
 
@@ -82,7 +137,12 @@ def build_ch_index(graph: Graph, order: list[Node] | tuple[Node, ...] | None = N
                 if in_edge.source == out_edge.target:
                     continue
                 shortcut_weight = in_edge.weight + out_edge.weight
-                witness = dijkstra(witness_graph, in_edge.source).distances[out_edge.target]
+                witness = _bounded_witness_distance(
+                    witness_graph,
+                    in_edge.source,
+                    out_edge.target,
+                    shortcut_weight,
+                )
                 if shortcut_weight < witness:
                     work.add_edge(in_edge.source, out_edge.target, shortcut_weight)
                     shortcuts.append(
@@ -108,11 +168,24 @@ def build_ch_index(graph: Graph, order: list[Node] | tuple[Node, ...] | None = N
             upward.add_edge(edge.target, edge.source, edge.weight)
             downward.add_edge(edge.source, edge.target, edge.weight)
 
-    return CHIndex(upward=upward, downward=downward, rank=rank, shortcuts=tuple(shortcuts))
+    shortcut_lookup: dict[tuple[Node, Node], Shortcut] = {}
+    for shortcut in shortcuts:
+        current = shortcut_lookup.get((shortcut.source, shortcut.target))
+        if current is None or shortcut.weight < current.weight:
+            shortcut_lookup[(shortcut.source, shortcut.target)] = shortcut
+
+    return CHIndex(
+        upward=upward,
+        downward=downward,
+        rank=rank,
+        shortcuts=tuple(shortcuts),
+        shortcut_lookup=shortcut_lookup,
+    )
 
 
-def _search_upward(graph: Graph, source: Node) -> dict[Node, float]:
+def _search_upward(graph: Graph, source: Node) -> tuple[dict[Node, float], dict[Node, Node | None]]:
     distances = {node: float("inf") for node in graph.nodes}
+    predecessors: dict[Node, Node | None] = {node: None for node in graph.nodes}
     distances[source] = 0.0
     queue: list[tuple[float, Node]] = [(0.0, source)]
     while queue:
@@ -123,8 +196,45 @@ def _search_upward(graph: Graph, source: Node) -> dict[Node, float]:
             candidate = distance + edge.weight
             if candidate < distances[edge.target]:
                 distances[edge.target] = candidate
+                predecessors[edge.target] = node
                 heapq.heappush(queue, (candidate, edge.target))
-    return distances
+    return distances, predecessors
+
+
+def _path_from_predecessors(
+    predecessors: dict[Node, Node | None],
+    source: Node,
+    target: Node,
+) -> list[Node]:
+    path: list[Node] = []
+    current: Node | None = target
+    while current is not None:
+        path.append(current)
+        if current == source:
+            break
+        current = predecessors[current]
+    if not path or path[-1] != source:
+        return []
+    path.reverse()
+    return path
+
+
+def _unpack_pair(source: Node, target: Node, shortcuts: dict[tuple[Node, Node], Shortcut]) -> list[Node]:
+    shortcut = shortcuts.get((source, target))
+    if shortcut is None:
+        return [source, target]
+    left = _unpack_pair(source, shortcut.via, shortcuts)
+    right = _unpack_pair(shortcut.via, target, shortcuts)
+    return left[:-1] + right
+
+
+def _unpack_path(path: list[Node], shortcuts: dict[tuple[Node, Node], Shortcut]) -> list[Node]:
+    if len(path) < 2:
+        return path
+    unpacked: list[Node] = [path[0]]
+    for source, target in zip(path, path[1:], strict=False):
+        unpacked.extend(_unpack_pair(source, target, shortcuts)[1:])
+    return unpacked
 
 
 def ch_query(index: CHIndex, source: Node, target: Node) -> float:
@@ -132,6 +242,25 @@ def ch_query(index: CHIndex, source: Node, target: Node) -> float:
 
     index.upward.require_node(source)
     index.upward.require_node(target)
-    forward = _search_upward(index.upward, source)
-    backward = _search_upward(index.downward, target)
+    forward, _ = _search_upward(index.upward, source)
+    backward, _ = _search_upward(index.downward, target)
     return min(forward[node] + backward[node] for node in index.upward.nodes)
+
+
+def ch_query_path(index: CHIndex, source: Node, target: Node) -> tuple[float, list[Node]]:
+    """Return the CH distance and an unpacked source-to-target path."""
+
+    index.upward.require_node(source)
+    index.upward.require_node(target)
+    forward, forward_predecessors = _search_upward(index.upward, source)
+    backward, backward_predecessors = _search_upward(index.downward, target)
+    meeting = min(index.upward.nodes, key=lambda node: forward[node] + backward[node])
+    distance = forward[meeting] + backward[meeting]
+    if distance == float("inf"):
+        return float("inf"), []
+
+    forward_path = _path_from_predecessors(forward_predecessors, source, meeting)
+    reverse_tail = _path_from_predecessors(backward_predecessors, target, meeting)
+    tail = list(reversed(reverse_tail))
+    packed = forward_path + tail[1:]
+    return distance, _unpack_path(packed, index.shortcut_lookup)

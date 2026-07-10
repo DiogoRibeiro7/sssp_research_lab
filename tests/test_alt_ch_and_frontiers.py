@@ -10,7 +10,12 @@ from sssp_lab.algorithms.alt import (
     random_landmarks,
 )
 from sssp_lab.algorithms.bmssp import bounded_multi_source_sssp
-from sssp_lab.algorithms.contraction_hierarchies import build_ch_index, ch_query
+from sssp_lab.algorithms.contraction_hierarchies import (
+    build_ch_index,
+    ch_query,
+    ch_query_path,
+    contraction_order,
+)
 from sssp_lab.algorithms.delta_stepping import delta_stepping
 from sssp_lab.algorithms.dijkstra_binary_heap import dijkstra
 from sssp_lab.algorithms.frontier_sssp import frontier_partition_sssp
@@ -86,6 +91,29 @@ def test_ch_query_matches_dijkstra_on_undirected_graph() -> None:
     )
     index = build_ch_index(graph, order=[0, 1, 2, 3])
     assert ch_query(index, 0, 3) == dijkstra(graph, 0).distances[3]
+
+
+def test_ch_query_path_unpacks_shortcuts() -> None:
+    graph = Graph.from_edges(
+        [(0, 1, 1), (1, 2, 1), (2, 3, 1), (0, 3, 10)],
+        directed=False,
+    )
+    index = build_ch_index(graph, order=[1, 2, 0, 3])
+
+    distance, path = ch_query_path(index, 0, 3)
+
+    assert distance == dijkstra(graph, 0).distances[3]
+    assert path[0] == 0
+    assert path[-1] == 3
+    assert len(path) >= 2
+
+
+def test_ch_order_heuristics_cover_small_graph() -> None:
+    graph = Graph.from_edges([(0, 1, 1), (1, 2, 1), (0, 2, 3)], directed=False)
+
+    for heuristic in ["degree", "edge_difference", "contracted_neighbor_count", "shortcut_cover", "level"]:
+        order = contraction_order(graph, heuristic=heuristic)
+        assert set(order) == graph.nodes
 
 
 def test_bounded_multi_source_sssp_exposes_frontier() -> None:
