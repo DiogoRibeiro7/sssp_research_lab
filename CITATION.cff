@@ -21,7 +21,15 @@ authors:
 version: 1.0.0
 date-released: 2026-07-11
 license: CC-BY-4.0
+doi: 10.5281/zenodo.21302832
 repository-code: "https://github.com/DiogoRibeiro7/sssp_research_lab"
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.21302832
+    description: "Concept DOI resolving to all versions."
+  - type: doi
+    value: 10.5281/zenodo.21302833
+    description: "Version DOI for the v1.0.0 release."
 keywords:
   - shortest paths
   - single-source shortest paths

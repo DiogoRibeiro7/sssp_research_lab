@@ -1,6 +1,6 @@
 # SSSP Research Lab
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.RECORD_ID.svg)](https://doi.org/10.5281/zenodo.RECORD_ID)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21302832.svg)](https://doi.org/10.5281/zenodo.21302832)
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 
 A Python research repository for shortest-path algorithms around the theme:
@@ -179,7 +179,7 @@ For the source repository, cite:
                 Inspired by Sorting-Barrier SSSP Research}},
   year       = {2026},
   version    = {1.0.0},
-  doi        = {10.5281/zenodo.RECORD_ID},
+  doi        = {10.5281/zenodo.21302833},
   url        = {https://github.com/DiogoRibeiro7/sssp_research_lab}
 }
 ```
