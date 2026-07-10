@@ -56,3 +56,14 @@ python scripts\benchmark_rust_accel.py --nodes 20000 --edges 120000 --sources 16
 Interpretation: wrapper-level Rust calls still pay Python graph conversion and result
 materialization costs, while CSR reuse and batched source execution isolate the kernel
 path and show the acceleration target more clearly.
+
+Before adding more Rust code, capture a profile for the same graph shape:
+
+```powershell
+python scripts\profile_rust_accel.py --nodes 20000 --edges 120000 --sources 16 --seed 17 --require-rust --output .benchmarks\rust_profile_20k_120k_16.json
+```
+
+The profiler writes JSON and markdown summaries of top cumulative Python
+functions per phase, separating graph generation, Python baselines, workspace
+preparation, end-to-end Rust wrappers, prepared single-source calls, and prepared
+batched calls.

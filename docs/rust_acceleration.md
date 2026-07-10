@@ -31,6 +31,7 @@ Then run:
 ```bash
 python -m pytest tests/test_rust_accel.py
 python scripts/benchmark_rust_accel.py --require-rust
+python scripts/profile_rust_accel.py --require-rust
 ```
 
 Without the extension installed, the wrapper raises `RustBackendUnavailable` and
@@ -46,6 +47,12 @@ Use `--sources N` to run several deterministic source nodes and report both
 total runtime and `seconds_per_source`. The `*_csr_batch` rows call Rust once
 with every source to measure Python call overhead separately from kernel work.
 Rows with matching Python baselines include `speedup_vs_python`.
+
+Use `scripts/profile_rust_accel.py` before moving more code into Rust. It writes
+JSON and markdown rows with cProfile top cumulative functions for graph
+generation, Python baselines, workspace preparation, wrapper calls, prepared
+single-source calls, and prepared batched calls. This helps distinguish kernel
+time from Python conversion, wrapper, and result-materialization overhead.
 
 CI builds the maturin wheel in a dedicated job and copies the compiled extension
 into `src/sssp_lab` with `scripts/install_built_rust_extension.py` before running

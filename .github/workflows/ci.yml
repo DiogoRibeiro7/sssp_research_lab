@@ -45,5 +45,6 @@ jobs:
         run: python scripts/build_rust_extension.py --install-source
       - name: Rust Python integration tests
         run: |
-          python -m pytest tests/test_rust_accel.py
+          python -m pytest tests/test_rust_accel.py tests/test_rust_correctness_corpus.py
           python scripts/benchmark_rust_accel.py --nodes 40 --edges 120 --require-rust --output .benchmarks/ci_rust_accel.json
+          python scripts/profile_rust_accel.py --nodes 40 --edges 120 --sources 4 --require-rust --output .benchmarks/ci_rust_profile.json
