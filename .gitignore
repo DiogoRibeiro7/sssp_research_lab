@@ -5,6 +5,8 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .benchmarks/
+rust/sssp_accel/target/
+src/sssp_lab/*.pyd
 dist/
 build/
 *.egg-info/

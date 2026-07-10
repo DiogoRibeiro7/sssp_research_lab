@@ -90,3 +90,17 @@ mypy src
 pytest
 python scripts/benchmark_sssp.py --nodes 1000 --edges 5000
 ```
+
+## Optional Rust acceleration
+
+The repository includes an optional PyO3/maturin extension under
+`rust/sssp_accel` for CSR-based Dijkstra and circular Dial kernels. The Python
+algorithms remain the correctness reference.
+
+```bash
+cd rust/sssp_accel
+maturin develop
+python -m pytest tests/test_rust_accel.py
+```
+
+See `docs/rust_acceleration.md` for the design boundary and wrapper API.

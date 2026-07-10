@@ -27,3 +27,5 @@ jobs:
         run: mypy src
       - name: Tests
         run: pytest
+      - name: Rust tests
+        run: cargo test --manifest-path rust/sssp_accel/Cargo.toml
