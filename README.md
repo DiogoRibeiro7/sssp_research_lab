@@ -91,6 +91,9 @@ pytest
 python scripts/benchmark_sssp.py --nodes 1000 --edges 5000
 ```
 
+Release notes live in `CHANGELOG.md`; the repeatable release checklist is in
+`docs/release_process.md`.
+
 ## Optional Rust acceleration
 
 The repository includes an optional PyO3/maturin extension under
