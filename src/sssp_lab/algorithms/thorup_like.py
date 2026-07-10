@@ -39,15 +39,25 @@ def build_distance_scale_buckets(result: PathResult, *, scale: int) -> tuple[Com
     return tuple(ComponentBucket(scale=k, nodes=frozenset(v)) for k, v in sorted(groups.items()))
 
 
-def thorup_integer_baseline(graph: Graph, source: Node) -> PathResult:
-    """Run the integer SSSP baseline used by the Thorup lab.
-
-    The function requires an undirected graph with non-negative integer weights
-    and uses radix-heap Dijkstra as a correctness baseline.
-    """
+def validate_thorup_target_graph(graph: Graph) -> None:
+    """Validate the graph assumptions for Thorup's target setting."""
 
     if graph.directed:
         raise ValueError("Thorup's target setting is undirected")
     graph.require_non_negative_weights()
     graph.require_integer_weights()
+    for edge in graph.iter_edges():
+        if edge.weight <= 0:
+            raise ValueError("Thorup's target setting requires positive weights")
+
+
+def thorup_integer_baseline(graph: Graph, source: Node) -> PathResult:
+    """Run the integer SSSP baseline used by the Thorup lab.
+
+    The function requires an undirected graph with positive integer weights and
+    uses radix-heap Dijkstra as a correctness baseline. It does not implement
+    Thorup's component hierarchy or word-RAM priority structure.
+    """
+
+    validate_thorup_target_graph(graph)
     return dijkstra_radix_heap(graph, source)

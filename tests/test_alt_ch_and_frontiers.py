@@ -134,6 +134,40 @@ def test_thorup_like_baseline_and_buckets() -> None:
     assert buckets
 
 
+def test_thorup_like_rejects_out_of_scope_graphs() -> None:
+    directed = Graph.from_edges([(0, 1, 1)], directed=True)
+    non_integer = Graph.from_edges([(0, 1, 1.5)], directed=False)
+    zero_weight = Graph.from_edges([(0, 1, 0)], directed=False)
+
+    for graph in [directed, non_integer, zero_weight]:
+        try:
+            thorup_integer_baseline(graph, 0)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("out-of-scope graph was accepted")
+
+
+def test_thorup_like_matches_references_on_undirected_families() -> None:
+    cases = [
+        Graph.from_edges([(0, 1, 2), (1, 2, 3), (2, 3, 4)], directed=False),
+        Graph.from_edges([(0, 1, 1), (1, 2, 1), (2, 0, 1)], directed=False),
+        Graph.from_edges([(0, 1, 7), (2, 3, 5)], directed=False),
+        make_random_graph(
+            nodes=15,
+            edges=25,
+            directed=False,
+            min_weight=1,
+            max_weight=20,
+            seed=55,
+        ),
+    ]
+
+    for graph in cases:
+        result = thorup_integer_baseline(graph, 0)
+        assert_same_distances(result.distances, dijkstra(graph, 0).distances)
+
+
 def test_johnson_sssp_matches_bellman_ford_case() -> None:
     graph = Graph.from_edges(
         [(0, 1, 1), (1, 2, -2), (0, 2, 5), (2, 3, 1)],
