@@ -4,9 +4,10 @@ import pytest
 
 from sssp_lab.algorithms.bellman_ford import NegativeCycleError, bellman_ford
 from sssp_lab.algorithms.delta_stepping import delta_stepping
-from sssp_lab.algorithms.dial import dial_sssp
+from sssp_lab.algorithms.dial import dial_circular_sssp, dial_sssp
 from sssp_lab.algorithms.dijkstra_binary_heap import dijkstra
 from sssp_lab.algorithms.dijkstra_radix import dijkstra_radix_heap
+from sssp_lab.algorithms.radix_heap import RadixHeap
 from sssp_lab.algorithms.stats import OperationStats
 from sssp_lab.algorithms.stepping_variants import (
     adaptive_bucket_delta,
@@ -44,6 +45,7 @@ def test_non_negative_algorithms_match_dijkstra(seed: int) -> None:
     reference = dijkstra(graph, 0)
     for result in [
         dial_sssp(graph, 0),
+        dial_circular_sssp(graph, 0),
         dijkstra_radix_heap(graph, 0),
         delta_stepping(graph, 0, delta=3.0),
         policy_delta_stepping(graph, 0),
@@ -87,6 +89,7 @@ def test_core_edge_cases_match_reference(graph: Graph) -> None:
     assert reference.distances[99] == float("inf")
     for result in [
         dial_sssp(graph, 0),
+        dial_circular_sssp(graph, 0),
         dijkstra_radix_heap(graph, 0),
         delta_stepping(graph, 0, delta=1.0),
     ]:
@@ -111,6 +114,7 @@ def test_core_algorithms_populate_stats() -> None:
     [
         dijkstra,
         dial_sssp,
+        dial_circular_sssp,
         dijkstra_radix_heap,
         lambda graph, source: delta_stepping(graph, source, delta=1.0),
     ],
@@ -122,12 +126,61 @@ def test_non_negative_algorithms_reject_negative_weights(runner: object) -> None
         runner(graph, 0)  # type: ignore[operator]
 
 
-@pytest.mark.parametrize("runner", [dial_sssp, dijkstra_radix_heap])
+@pytest.mark.parametrize("runner", [dial_sssp, dial_circular_sssp, dijkstra_radix_heap])
 def test_integer_algorithms_reject_non_integer_weights(runner: object) -> None:
     graph = Graph.from_edges([(0, 1, 1.5)], directed=True)
 
     with pytest.raises(ValueError):
         runner(graph, 0)  # type: ignore[operator]
+
+
+def test_radix_heap_monotone_keys_and_duplicates() -> None:
+    heap: RadixHeap[str] = RadixHeap(max_bits=16)
+    heap.push(0, "a")
+    heap.push(3, "b")
+    heap.push(3, "c")
+    heap.push(10, "d")
+
+    assert heap.pop() == (0, "a")
+    assert heap.pop()[0] == 3
+    assert heap.pop()[0] == 3
+    assert heap.pop() == (10, "d")
+
+
+def test_radix_heap_rejects_invalid_operations() -> None:
+    heap: RadixHeap[int] = RadixHeap(max_bits=8)
+
+    with pytest.raises(IndexError):
+        heap.pop()
+
+    heap.push(5, 1)
+    assert heap.pop() == (5, 1)
+    with pytest.raises(ValueError):
+        heap.push(4, 2)
+
+
+def test_radix_heap_handles_large_integer_keys() -> None:
+    heap: RadixHeap[str] = RadixHeap(max_bits=64)
+    large = 2**40
+
+    heap.push(large, "large")
+
+    assert heap.pop() == (large, "large")
+
+
+def test_circular_dial_matches_reference_on_wide_integer_weights() -> None:
+    graph = make_random_graph(
+        nodes=25,
+        edges=100,
+        directed=True,
+        min_weight=1,
+        max_weight=1000,
+        seed=44,
+    )
+
+    result = dial_circular_sssp(graph, 0)
+
+    assert_same_distances(result.distances, dijkstra(graph, 0).distances)
 
 
 @pytest.mark.parametrize("delta", [0.5, 1.0, 2.0, 5.0])

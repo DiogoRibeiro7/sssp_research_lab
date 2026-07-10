@@ -17,7 +17,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from sssp_lab.algorithms.delta_stepping import delta_stepping  # noqa: E402
-from sssp_lab.algorithms.dial import dial_sssp  # noqa: E402
+from sssp_lab.algorithms.dial import dial_circular_sssp, dial_sssp  # noqa: E402
 from sssp_lab.algorithms.dijkstra_binary_heap import dijkstra  # noqa: E402
 from sssp_lab.algorithms.dijkstra_radix import dijkstra_radix_heap  # noqa: E402
 from sssp_lab.graph import Graph, PathResult  # noqa: E402
@@ -41,6 +41,8 @@ def main() -> None:
     parser.add_argument("--nodes", type=int, default=1000)
     parser.add_argument("--edges", type=int, default=5000)
     parser.add_argument("--seed", type=int, default=7)
+    parser.add_argument("--min-weight", type=int, default=1)
+    parser.add_argument("--max-weight", type=int, default=20)
     parser.add_argument("--output", type=Path, default=Path("benchmarks/benchmark.json"))
     args = parser.parse_args()
 
@@ -48,14 +50,15 @@ def main() -> None:
         nodes=args.nodes,
         edges=args.edges,
         directed=True,
-        min_weight=1,
-        max_weight=20,
+        min_weight=args.min_weight,
+        max_weight=args.max_weight,
         seed=args.seed,
     )
 
     algorithms: dict[str, Algorithm] = {
         "binary_heap_dijkstra": dijkstra,
         "dial": dial_sssp,
+        "dial_circular": dial_circular_sssp,
         "radix_heap": dijkstra_radix_heap,
         "delta_stepping_delta_5": lambda g, s: delta_stepping(g, s, delta=5.0),
     }

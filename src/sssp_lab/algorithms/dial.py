@@ -64,3 +64,66 @@ def dial_sssp(graph: Graph, source: Node, *, stats: OperationStats | None = None
                         )
 
     return PathResult(source=source, distances=distances, predecessors=predecessors)
+
+
+def dial_circular_sssp(
+    graph: Graph,
+    source: Node,
+    *,
+    stats: OperationStats | None = None,
+) -> PathResult:
+    """Compute SSSP with Dial's circular bucket queue.
+
+    Assumptions: directed or undirected graph, non-negative integer weights,
+    single source, and bounded maximum edge weight. The circular layout uses
+    ``C + 1`` buckets for maximum edge weight ``C`` instead of allocating a
+    bucket for every possible path length.
+    """
+
+    counters = stats if stats is not None else OperationStats()
+    graph.require_non_negative_weights()
+    graph.require_integer_weights()
+    distances, predecessors = initialise_single_source(graph, source)
+
+    max_weight = graph.max_edge_weight()
+    width = max(max_weight + 1, 1)
+    buckets: list[deque[Node]] = [deque() for _ in range(width)]
+    buckets[0].append(source)
+    counters.bucket_insertions += 1
+    counters.max_bucket_size = 1
+
+    settled: set[Node] = set()
+    active_entries = 1
+    current_distance = 0
+
+    while active_entries:
+        bucket = buckets[current_distance % width]
+        if not bucket:
+            current_distance += 1
+            continue
+
+        node = bucket.popleft()
+        active_entries -= 1
+        counters.queue_pops += 1
+        if node in settled:
+            counters.stale_pops += 1
+            continue
+        if int(distances[node]) != current_distance:
+            counters.stale_pops += 1
+            continue
+
+        settled.add(node)
+        counters.settled_nodes += 1
+        for edge in graph.neighbors(node):
+            counters.relaxations += 1
+            candidate = int(distances[node] + edge.weight)
+            if candidate < distances[edge.target]:
+                distances[edge.target] = float(candidate)
+                predecessors[edge.target] = node
+                target_bucket = buckets[candidate % width]
+                target_bucket.append(edge.target)
+                active_entries += 1
+                counters.bucket_insertions += 1
+                counters.max_bucket_size = max(counters.max_bucket_size, len(target_bucket))
+
+    return PathResult(source=source, distances=distances, predecessors=predecessors)
