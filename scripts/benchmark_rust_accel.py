@@ -19,14 +19,19 @@ if str(SRC) not in sys.path:
 from sssp_lab.algorithms.dial import dial_circular_sssp  # noqa: E402
 from sssp_lab.algorithms.dijkstra_binary_heap import dijkstra  # noqa: E402
 from sssp_lab.algorithms.rust_accel import (  # noqa: E402
+    CSRGraph,
     dial_circular_rust,
+    dial_circular_rust_csr,
     dijkstra_rust,
+    dijkstra_rust_csr,
+    graph_to_csr,
     rust_backend_available,
 )
 from sssp_lab.graph import Graph, PathResult  # noqa: E402
 from sssp_lab.utils import assert_same_distances, make_random_graph  # noqa: E402
 
 Runner = Callable[[Graph, int], PathResult]
+CSRRunner = Callable[[CSRGraph, int], PathResult]
 
 
 def timed(name: str, backend: str, runner: Runner, graph: Graph, source: int) -> dict[str, object]:
@@ -34,6 +39,27 @@ def timed(name: str, backend: str, runner: Runner, graph: Graph, source: int) ->
 
     start = time.perf_counter()
     result = runner(graph, source)
+    seconds = time.perf_counter() - start
+    return {
+        "algorithm": name,
+        "backend": backend,
+        "seconds": seconds,
+        "reachable": sum(distance < float("inf") for distance in result.distances.values()),
+        "result": result,
+    }
+
+
+def timed_csr(
+    name: str,
+    backend: str,
+    runner: CSRRunner,
+    csr: CSRGraph,
+    source: int,
+) -> dict[str, object]:
+    """Run one implementation against a prebuilt CSR graph."""
+
+    start = time.perf_counter()
+    result = runner(csr, source)
     seconds = time.perf_counter() - start
     return {
         "algorithm": name,
@@ -77,10 +103,24 @@ def main() -> None:
         raise TypeError("runner returned unexpected result type")
 
     if rust_backend_available():
+        conversion_start = time.perf_counter()
+        csr = graph_to_csr(graph)
+        conversion_seconds = time.perf_counter() - conversion_start
+        rows.append(
+            {
+                "algorithm": "csr_conversion",
+                "backend": "python",
+                "seconds": conversion_seconds,
+                "reachable": len(csr.nodes),
+                "result": reference,
+            }
+        )
         rows.extend(
             [
                 timed("dijkstra", "rust", dijkstra_rust, graph, 0),
                 timed("dial_circular", "rust", dial_circular_rust, graph, 0),
+                timed_csr("dijkstra_csr_reused", "rust", dijkstra_rust_csr, csr, 0),
+                timed_csr("dial_circular_csr_reused", "rust", dial_circular_rust_csr, csr, 0),
             ]
         )
     elif args.require_rust:

@@ -23,9 +23,18 @@ class CSRGraph:
     """Compressed sparse row arrays and node-id mappings."""
 
     nodes: tuple[Node, ...]
+    node_to_index: dict[Node, int]
     offsets: list[int]
     targets: list[int]
     weights: list[float]
+
+    def source_index(self, source: Node) -> int:
+        """Return the CSR index for ``source``."""
+
+        try:
+            return self.node_to_index[source]
+        except KeyError as exc:
+            raise ValueError(f"source node {source!r} is not present in graph") from exc
 
 
 def rust_backend_available() -> bool:
@@ -55,7 +64,13 @@ def graph_to_csr(graph: Graph) -> CSRGraph:
             targets.append(index[edge.target])
             weights.append(edge.weight)
         offsets.append(len(targets))
-    return CSRGraph(nodes=nodes, offsets=offsets, targets=targets, weights=weights)
+    return CSRGraph(
+        nodes=nodes,
+        node_to_index=index,
+        offsets=offsets,
+        targets=targets,
+        weights=weights,
+    )
 
 
 def _predecessor_map(nodes: tuple[Node, ...], raw_predecessors: list[int | None]) -> dict[Node, Node | None]:
@@ -72,11 +87,17 @@ def _distance_map(nodes: tuple[Node, ...], raw_distances: list[float]) -> dict[N
 def dijkstra_rust(graph: Graph, source: Node) -> PathResult:
     """Compute non-negative SSSP through the optional Rust Dijkstra kernel."""
 
-    backend = _backend()
     graph.require_non_negative_weights()
     graph.require_node(source)
     csr = graph_to_csr(graph)
-    source_index = csr.nodes.index(source)
+    return dijkstra_rust_csr(csr, source)
+
+
+def dijkstra_rust_csr(csr: CSRGraph, source: Node) -> PathResult:
+    """Compute non-negative SSSP through Rust using a prebuilt CSR graph."""
+
+    backend = _backend()
+    source_index = csr.source_index(source)
     raw_distances, raw_predecessors = backend.dijkstra_csr(
         len(csr.nodes),
         csr.offsets,
@@ -94,12 +115,18 @@ def dijkstra_rust(graph: Graph, source: Node) -> PathResult:
 def dial_circular_rust(graph: Graph, source: Node) -> PathResult:
     """Compute integer SSSP through the optional Rust circular-Dial kernel."""
 
-    backend = _backend()
     graph.require_non_negative_weights()
     graph.require_integer_weights()
     graph.require_node(source)
     csr = graph_to_csr(graph)
-    source_index = csr.nodes.index(source)
+    return dial_circular_rust_csr(csr, source)
+
+
+def dial_circular_rust_csr(csr: CSRGraph, source: Node) -> PathResult:
+    """Compute integer SSSP through Rust using a prebuilt CSR graph."""
+
+    backend = _backend()
+    source_index = csr.source_index(source)
     integer_weights = [int(weight) for weight in csr.weights]
     raw_distances, raw_predecessors = backend.dial_circular_csr(
         len(csr.nodes),
@@ -119,7 +146,9 @@ __all__ = [
     "CSRGraph",
     "RustBackendUnavailable",
     "dial_circular_rust",
+    "dial_circular_rust_csr",
     "dijkstra_rust",
+    "dijkstra_rust_csr",
     "graph_to_csr",
     "rust_backend_available",
 ]

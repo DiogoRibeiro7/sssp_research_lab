@@ -36,6 +36,9 @@ the optional kernel tests are skipped.
 The benchmark script writes JSON and CSV rows comparing Python and Rust
 implementations. Without `--require-rust`, it still writes Python-only baseline
 rows so benchmark automation can run before the optional wheel is installed.
+When the Rust backend is installed, the output includes both end-to-end wrapper
+rows and `*_csr_reused` rows that reuse one prebuilt CSR graph. This separates
+conversion overhead from kernel runtime for repeated-query experiments.
 
 CI builds the maturin wheel in a dedicated job and copies the compiled extension
 into `src/sssp_lab` with `scripts/install_built_rust_extension.py` before running
