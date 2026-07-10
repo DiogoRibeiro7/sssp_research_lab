@@ -8,6 +8,20 @@ validation changes, and benchmark-relevant implementation work.
 
 ### Added
 
+- Trimmed-mean Δ-selection policy for stepping experiments.
+- Repeated-source Δ-stepping benchmark helper with sequential, thread, and
+  process-pool modes plus JSON, CSV, and markdown exports.
+- ALT landmark strategies for avoid-style pair sampling and coordinate
+  bounding-box corners.
+- Witness-aware Contraction Hierarchies ordering variants and candidate metrics.
+- Finite-bound recursive BMSSP scaffold that composes bounded subproblems
+  through frontier labels.
+- Incomplete-vertex index for frontier experiments, including boundary-edge and
+  boundary-label tracking.
+- Thorup-style thresholded component hierarchy scaffold for undirected positive
+  integer graphs.
+- Markdown summaries for benchmark scripts.
+- Graph invariant tests covering distance optimality and predecessor chains.
 - Optional Rust acceleration package under `rust/sssp_accel` using PyO3 and
   maturin.
 - CSR-based Rust kernels for Dijkstra and circular-Dial shortest paths.
@@ -26,6 +40,12 @@ validation changes, and benchmark-relevant implementation work.
 
 ### Changed
 
+- Roadmap and algorithm notes now reflect current coverage for Δ policies,
+  repeated-source Δ-stepping, ALT landmarks, CH ordering, BMSSP recursion,
+  frontier data structures, and Thorup-style hierarchy scaffolding.
+- ALT benchmark tooling now supports selectable landmark strategies.
+- Frontier partition diagnostics now include incomplete-vertex and boundary-edge
+  counts.
 - GitHub Actions now builds the optional Rust extension, runs extension-backed
   tests, executes a benchmark smoke test, and executes a profiler smoke test.
 - PyO3 was updated to `0.29.0`.
@@ -34,6 +54,10 @@ validation changes, and benchmark-relevant implementation work.
 
 ### Fixed
 
+- CH path queries now search the reverse of the downward graph for backward
+  labels, fixing low-rank target cases.
+- Negative-weight baseline instrumentation now reports operation counters for
+  Johnson and reference runs.
 - Linux CI cargo tests no longer require Python extension-module linker flags.
 - Rust benchmark reporting now includes markdown summaries and baseline-relative
   speedups.
