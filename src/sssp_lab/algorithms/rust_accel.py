@@ -84,6 +84,20 @@ def _distance_map(nodes: tuple[Node, ...], raw_distances: list[float]) -> dict[N
     return dict(zip(nodes, raw_distances, strict=True))
 
 
+def _path_result_from_raw(
+    *,
+    nodes: tuple[Node, ...],
+    source: Node,
+    raw_distances: list[float],
+    raw_predecessors: list[int | None],
+) -> PathResult:
+    return PathResult(
+        source=source,
+        distances=_distance_map(nodes, raw_distances),
+        predecessors=_predecessor_map(nodes, raw_predecessors),
+    )
+
+
 def dijkstra_rust(graph: Graph, source: Node) -> PathResult:
     """Compute non-negative SSSP through the optional Rust Dijkstra kernel."""
 
@@ -105,11 +119,35 @@ def dijkstra_rust_csr(csr: CSRGraph, source: Node) -> PathResult:
         csr.weights,
         source_index,
     )
-    return PathResult(
+    return _path_result_from_raw(
+        nodes=csr.nodes,
         source=source,
-        distances=_distance_map(csr.nodes, raw_distances),
-        predecessors=_predecessor_map(csr.nodes, raw_predecessors),
+        raw_distances=raw_distances,
+        raw_predecessors=raw_predecessors,
     )
+
+
+def dijkstra_rust_csr_many(csr: CSRGraph, sources: tuple[Node, ...]) -> list[PathResult]:
+    """Compute Rust Dijkstra for several sources in one extension call."""
+
+    backend = _backend()
+    source_indices = [csr.source_index(source) for source in sources]
+    raw_results = backend.dijkstra_csr_many(
+        len(csr.nodes),
+        csr.offsets,
+        csr.targets,
+        csr.weights,
+        source_indices,
+    )
+    return [
+        _path_result_from_raw(
+            nodes=csr.nodes,
+            source=source,
+            raw_distances=raw_distances,
+            raw_predecessors=raw_predecessors,
+        )
+        for source, (raw_distances, raw_predecessors) in zip(sources, raw_results, strict=True)
+    ]
 
 
 def dial_circular_rust(graph: Graph, source: Node) -> PathResult:
@@ -135,11 +173,36 @@ def dial_circular_rust_csr(csr: CSRGraph, source: Node) -> PathResult:
         integer_weights,
         source_index,
     )
-    return PathResult(
+    return _path_result_from_raw(
+        nodes=csr.nodes,
         source=source,
-        distances=_distance_map(csr.nodes, raw_distances),
-        predecessors=_predecessor_map(csr.nodes, raw_predecessors),
+        raw_distances=raw_distances,
+        raw_predecessors=raw_predecessors,
     )
+
+
+def dial_circular_rust_csr_many(csr: CSRGraph, sources: tuple[Node, ...]) -> list[PathResult]:
+    """Compute Rust circular-Dial for several sources in one extension call."""
+
+    backend = _backend()
+    source_indices = [csr.source_index(source) for source in sources]
+    integer_weights = [int(weight) for weight in csr.weights]
+    raw_results = backend.dial_circular_csr_many(
+        len(csr.nodes),
+        csr.offsets,
+        csr.targets,
+        integer_weights,
+        source_indices,
+    )
+    return [
+        _path_result_from_raw(
+            nodes=csr.nodes,
+            source=source,
+            raw_distances=raw_distances,
+            raw_predecessors=raw_predecessors,
+        )
+        for source, (raw_distances, raw_predecessors) in zip(sources, raw_results, strict=True)
+    ]
 
 
 __all__ = [
@@ -147,8 +210,10 @@ __all__ = [
     "RustBackendUnavailable",
     "dial_circular_rust",
     "dial_circular_rust_csr",
+    "dial_circular_rust_csr_many",
     "dijkstra_rust",
     "dijkstra_rust_csr",
+    "dijkstra_rust_csr_many",
     "graph_to_csr",
     "rust_backend_available",
 ]

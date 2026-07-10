@@ -22,8 +22,10 @@ from sssp_lab.algorithms.rust_accel import (  # noqa: E402
     CSRGraph,
     dial_circular_rust,
     dial_circular_rust_csr,
+    dial_circular_rust_csr_many,
     dijkstra_rust,
     dijkstra_rust_csr,
+    dijkstra_rust_csr_many,
     graph_to_csr,
     rust_backend_available,
 )
@@ -32,6 +34,7 @@ from sssp_lab.utils import assert_same_distances, make_random_graph  # noqa: E40
 
 Runner = Callable[[Graph, int], PathResult]
 CSRRunner = Callable[[CSRGraph, int], PathResult]
+CSRBatchRunner = Callable[[CSRGraph, tuple[int, ...]], list[PathResult]]
 
 
 def select_sources(graph: Graph, count: int) -> tuple[int, ...]:
@@ -87,6 +90,33 @@ def timed_csr_many(
     start = time.perf_counter()
     for source in sources:
         results.append(runner(csr, source))
+    seconds = time.perf_counter() - start
+    return {
+        "algorithm": name,
+        "backend": backend,
+        "seconds": seconds,
+        "source_count": len(sources),
+        "seconds_per_source": seconds / len(sources),
+        "reachable": sum(
+            distance < float("inf")
+            for result in results
+            for distance in result.distances.values()
+        ),
+        "result": results,
+    }
+
+
+def timed_csr_batch(
+    name: str,
+    backend: str,
+    runner: CSRBatchRunner,
+    csr: CSRGraph,
+    sources: tuple[int, ...],
+) -> dict[str, object]:
+    """Run one batched implementation against a prebuilt CSR graph."""
+
+    start = time.perf_counter()
+    results = runner(csr, sources)
     seconds = time.perf_counter() - start
     return {
         "algorithm": name,
@@ -163,6 +193,14 @@ def main() -> None:
                     "dial_circular_csr_reused",
                     "rust",
                     dial_circular_rust_csr,
+                    csr,
+                    sources,
+                ),
+                timed_csr_batch("dijkstra_csr_batch", "rust", dijkstra_rust_csr_many, csr, sources),
+                timed_csr_batch(
+                    "dial_circular_csr_batch",
+                    "rust",
+                    dial_circular_rust_csr_many,
                     csr,
                     sources,
                 ),

@@ -3,6 +3,8 @@ use pyo3::prelude::*;
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, VecDeque};
 
+type SsspOutput = (Vec<f64>, Vec<Option<usize>>);
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct State {
     cost: f64,
@@ -46,29 +48,46 @@ fn validate_targets(node_count: usize, edge_count: usize, targets: &[usize]) -> 
     Ok(())
 }
 
-#[pyfunction]
-fn dijkstra_csr(
-    node_count: usize,
-    offsets: Vec<usize>,
-    targets: Vec<usize>,
-    weights: Vec<f64>,
-    source: usize,
-) -> PyResult<(Vec<f64>, Vec<Option<usize>>)> {
-    validate_offsets(node_count, &offsets)?;
-    validate_targets(node_count, weights.len(), &targets)?;
-    if source >= node_count {
+fn validate_sources(node_count: usize, sources: &[usize]) -> PyResult<()> {
+    if sources.iter().any(|&source| source >= node_count) {
         return Err(PyValueError::new_err("source index out of range"));
     }
+    Ok(())
+}
+
+fn validate_csr_shape(
+    node_count: usize,
+    offsets: &[usize],
+    targets: &[usize],
+    edge_count: usize,
+) -> PyResult<()> {
+    validate_offsets(node_count, offsets)?;
+    validate_targets(node_count, edge_count, targets)?;
+    if offsets[node_count] != targets.len() {
+        return Err(PyValueError::new_err("final offset must equal edge count"));
+    }
+    Ok(())
+}
+
+fn validate_float_weights(weights: &[f64]) -> PyResult<()> {
     if weights
         .iter()
         .any(|weight| !weight.is_finite() || *weight < 0.0)
     {
-        return Err(PyValueError::new_err("weights must be finite and non-negative"));
+        return Err(PyValueError::new_err(
+            "weights must be finite and non-negative",
+        ));
     }
-    if offsets[node_count] != targets.len() {
-        return Err(PyValueError::new_err("final offset must equal edge count"));
-    }
+    Ok(())
+}
 
+fn dijkstra_csr_impl(
+    node_count: usize,
+    offsets: &[usize],
+    targets: &[usize],
+    weights: &[f64],
+    source: usize,
+) -> SsspOutput {
     let mut distances = vec![f64::INFINITY; node_count];
     let mut predecessors = vec![None; node_count];
     let mut heap = BinaryHeap::new();
@@ -96,26 +115,43 @@ fn dijkstra_csr(
         }
     }
 
-    Ok((distances, predecessors))
+    (distances, predecessors)
 }
 
 #[pyfunction]
-fn dial_circular_csr(
+fn dijkstra_csr(
     node_count: usize,
     offsets: Vec<usize>,
     targets: Vec<usize>,
-    weights: Vec<u64>,
+    weights: Vec<f64>,
     source: usize,
-) -> PyResult<(Vec<f64>, Vec<Option<usize>>)> {
-    validate_offsets(node_count, &offsets)?;
-    validate_targets(node_count, weights.len(), &targets)?;
-    if source >= node_count {
-        return Err(PyValueError::new_err("source index out of range"));
-    }
-    if offsets[node_count] != targets.len() {
-        return Err(PyValueError::new_err("final offset must equal edge count"));
-    }
+) -> PyResult<SsspOutput> {
+    validate_csr_shape(node_count, &offsets, &targets, weights.len())?;
+    validate_sources(node_count, &[source])?;
+    validate_float_weights(&weights)?;
+    Ok(dijkstra_csr_impl(
+        node_count, &offsets, &targets, &weights, source,
+    ))
+}
 
+#[pyfunction]
+fn dijkstra_csr_many(
+    node_count: usize,
+    offsets: Vec<usize>,
+    targets: Vec<usize>,
+    weights: Vec<f64>,
+    sources: Vec<usize>,
+) -> PyResult<Vec<SsspOutput>> {
+    validate_csr_shape(node_count, &offsets, &targets, weights.len())?;
+    validate_sources(node_count, &sources)?;
+    validate_float_weights(&weights)?;
+    Ok(sources
+        .into_iter()
+        .map(|source| dijkstra_csr_impl(node_count, &offsets, &targets, &weights, source))
+        .collect())
+}
+
+fn dial_bucket_width(weights: &[u64]) -> PyResult<(u64, usize)> {
     let max_weight = weights.iter().copied().max().unwrap_or(0);
     let width_u64 = max_weight
         .checked_add(1)
@@ -124,9 +160,22 @@ fn dial_circular_csr(
         .try_into()
         .map_err(|_| PyValueError::new_err("bucket width does not fit usize"))?;
     if width > 10_000_000 {
-        return Err(PyValueError::new_err("bucket width is too large for circular Dial"));
+        return Err(PyValueError::new_err(
+            "bucket width is too large for circular Dial",
+        ));
     }
+    Ok((width_u64, width))
+}
 
+fn dial_circular_csr_impl(
+    node_count: usize,
+    offsets: &[usize],
+    targets: &[usize],
+    weights: &[u64],
+    source: usize,
+    width_u64: u64,
+    width: usize,
+) -> PyResult<SsspOutput> {
     let mut distances = vec![u64::MAX; node_count];
     let mut predecessors = vec![None; node_count];
     let mut buckets: Vec<VecDeque<usize>> = (0..width).map(|_| VecDeque::new()).collect();
@@ -180,16 +229,55 @@ fn dial_circular_csr(
     Ok((float_distances, predecessors))
 }
 
+#[pyfunction]
+fn dial_circular_csr(
+    node_count: usize,
+    offsets: Vec<usize>,
+    targets: Vec<usize>,
+    weights: Vec<u64>,
+    source: usize,
+) -> PyResult<SsspOutput> {
+    validate_csr_shape(node_count, &offsets, &targets, weights.len())?;
+    validate_sources(node_count, &[source])?;
+    let (width_u64, width) = dial_bucket_width(&weights)?;
+    dial_circular_csr_impl(
+        node_count, &offsets, &targets, &weights, source, width_u64, width,
+    )
+}
+
+#[pyfunction]
+fn dial_circular_csr_many(
+    node_count: usize,
+    offsets: Vec<usize>,
+    targets: Vec<usize>,
+    weights: Vec<u64>,
+    sources: Vec<usize>,
+) -> PyResult<Vec<SsspOutput>> {
+    validate_csr_shape(node_count, &offsets, &targets, weights.len())?;
+    validate_sources(node_count, &sources)?;
+    let (width_u64, width) = dial_bucket_width(&weights)?;
+    sources
+        .into_iter()
+        .map(|source| {
+            dial_circular_csr_impl(
+                node_count, &offsets, &targets, &weights, source, width_u64, width,
+            )
+        })
+        .collect()
+}
+
 #[pymodule]
 fn _sssp_accel(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(dijkstra_csr, module)?)?;
+    module.add_function(wrap_pyfunction!(dijkstra_csr_many, module)?)?;
     module.add_function(wrap_pyfunction!(dial_circular_csr, module)?)?;
+    module.add_function(wrap_pyfunction!(dial_circular_csr_many, module)?)?;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{dial_circular_csr, dijkstra_csr};
+    use super::{dial_circular_csr, dial_circular_csr_many, dijkstra_csr, dijkstra_csr_many};
 
     #[test]
     fn dijkstra_handles_shortest_path() {
@@ -220,5 +308,29 @@ mod tests {
         let result = dijkstra_csr(2, vec![0, 1, 1], vec![1], vec![-1.0], 0);
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn dijkstra_many_handles_multiple_sources() {
+        let offsets = vec![0, 2, 3, 4, 4];
+        let targets = vec![1, 2, 2, 3];
+        let weights = vec![2.0, 5.0, 1.0, 3.0];
+
+        let results = dijkstra_csr_many(4, offsets, targets, weights, vec![0, 1]).unwrap();
+
+        assert_eq!(results[0].0, vec![0.0, 2.0, 3.0, 6.0]);
+        assert_eq!(results[1].0, vec![f64::INFINITY, 0.0, 1.0, 4.0]);
+    }
+
+    #[test]
+    fn circular_dial_many_handles_multiple_sources() {
+        let offsets = vec![0, 2, 3, 4, 4];
+        let targets = vec![1, 2, 2, 3];
+        let weights = vec![2, 5, 1, 3];
+
+        let results = dial_circular_csr_many(4, offsets, targets, weights, vec![0, 1]).unwrap();
+
+        assert_eq!(results[0].0, vec![0.0, 2.0, 3.0, 6.0]);
+        assert_eq!(results[1].0, vec![f64::INFINITY, 0.0, 1.0, 4.0]);
     }
 }

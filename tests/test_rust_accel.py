@@ -8,8 +8,10 @@ from sssp_lab.algorithms.rust_accel import (
     RustBackendUnavailable,
     dial_circular_rust,
     dial_circular_rust_csr,
+    dial_circular_rust_csr_many,
     dijkstra_rust,
     dijkstra_rust_csr,
+    dijkstra_rust_csr_many,
     graph_to_csr,
     rust_backend_available,
 )
@@ -75,6 +77,21 @@ def test_rust_dijkstra_accepts_prebuilt_csr() -> None:
 
 
 @pytest.mark.skipif(not rust_backend_available(), reason="Rust backend is not installed")
+def test_rust_dijkstra_accepts_batched_sources() -> None:
+    graph = Graph.from_edges(
+        [(10, 20, 2), (10, 30, 5), (20, 30, 1), (30, 40, 3)],
+        directed=True,
+    )
+    csr = graph_to_csr(graph)
+
+    results = dijkstra_rust_csr_many(csr, (10, 20))
+
+    assert len(results) == 2
+    assert_same_distances(results[0].distances, dijkstra(graph, 10).distances)
+    assert_same_distances(results[1].distances, dijkstra(graph, 20).distances)
+
+
+@pytest.mark.skipif(not rust_backend_available(), reason="Rust backend is not installed")
 def test_rust_circular_dial_matches_python_reference() -> None:
     graph = Graph.from_edges(
         [(0, 1, 2), (0, 2, 5), (1, 2, 1), (2, 3, 3)],
@@ -97,3 +114,18 @@ def test_rust_circular_dial_accepts_prebuilt_csr() -> None:
     result = dial_circular_rust_csr(csr, 0)
 
     assert_same_distances(result.distances, dial_circular_sssp(graph, 0).distances)
+
+
+@pytest.mark.skipif(not rust_backend_available(), reason="Rust backend is not installed")
+def test_rust_circular_dial_accepts_batched_sources() -> None:
+    graph = Graph.from_edges(
+        [(0, 1, 2), (0, 2, 5), (1, 2, 1), (2, 3, 3)],
+        directed=True,
+    )
+    csr = graph_to_csr(graph)
+
+    results = dial_circular_rust_csr_many(csr, (0, 1))
+
+    assert len(results) == 2
+    assert_same_distances(results[0].distances, dial_circular_sssp(graph, 0).distances)
+    assert_same_distances(results[1].distances, dial_circular_sssp(graph, 1).distances)
