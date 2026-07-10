@@ -3,6 +3,7 @@ from __future__ import annotations
 from sssp_lab.algorithms.alt import alt_query, build_alt_index
 from sssp_lab.algorithms.bmssp import bounded_multi_source_sssp
 from sssp_lab.algorithms.contraction_hierarchies import build_ch_index, ch_query
+from sssp_lab.algorithms.delta_stepping import delta_stepping
 from sssp_lab.algorithms.dijkstra_binary_heap import dijkstra
 from sssp_lab.algorithms.frontier_sssp import frontier_partition_sssp
 from sssp_lab.algorithms.negative_weight import johnson_sssp
@@ -89,9 +90,37 @@ def test_frontier_partition_matches_dijkstra() -> None:
         [(0, 1, 2), (1, 2, 2), (0, 3, 10), (2, 3, 1)],
         directed=True,
     )
-    result, stats = frontier_partition_sssp(graph, 0, initial_bound=2, growth=2)
+    result, stats = frontier_partition_sssp(graph, 0, initial_bound=2, growth=2, debug=True)
     assert stats.rounds >= 1
     assert_same_distances(result.distances, dijkstra(graph, 0).distances)
+
+
+def test_frontier_partition_matches_comparison_algorithms() -> None:
+    graph = Graph.from_edges(
+        [(0, 1, 1), (1, 2, 4), (0, 3, 2), (3, 2, 1), (2, 4, 3)],
+        directed=True,
+    )
+
+    result, _ = frontier_partition_sssp(graph, 0, initial_bound=1.5, growth=2.0, debug=True)
+
+    assert_same_distances(result.distances, dijkstra(graph, 0).distances)
+    assert_same_distances(result.distances, delta_stepping(graph, 0, delta=2).distances)
+
+
+def test_frontier_partition_uses_absolute_source_offsets() -> None:
+    graph = Graph.from_edges(
+        [
+            (0, 1, 2),
+            (1, 2, 2),
+            (0, 2, 10),
+            (2, 3, 1),
+        ],
+        directed=True,
+    )
+
+    result, _ = frontier_partition_sssp(graph, 0, initial_bound=3, growth=2, debug=True)
+
+    assert result.distances[3] == 5
 
 
 def test_thorup_like_baseline_and_buckets() -> None:
