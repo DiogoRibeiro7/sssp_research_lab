@@ -5,7 +5,9 @@
 - Add operation counters to every algorithm. Current coverage includes core
   Dijkstra/Dial/radix/Delta/Bellman-Ford paths, BMSSP, stepping variants, ALT
   query stats, and the Johnson negative-weight baseline.
-- Add property-based tests for random graphs.
+- Add property-style tests for random graphs. Current deterministic coverage
+  checks distance optimality and predecessor invariants across generated graph
+  families and negative DAGs.
 - Add graph generators for grids, DAGs, road-like graphs, and heavy-tailed graphs.
 - Add benchmark export to JSON and CSV.
 
