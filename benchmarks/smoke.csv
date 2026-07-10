@@ -1,0 +1,5 @@
+algorithm,seconds,reachable
+binary_heap_dijkstra,0.0002095959999905972,98
+dial,0.003914478999945459,98
+radix_heap,0.000427765000040381,98
+delta_stepping_delta_5,0.00034012000003258436,98

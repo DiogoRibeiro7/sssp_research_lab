@@ -1,0 +1,41 @@
+[tool.poetry]
+name = "sssp-research-lab"
+version = "0.1.0"
+description = "Implementable shortest-path algorithms inspired by sorting-barrier SSSP research."
+authors = ["Diogo Ribeiro <hansolo.dj@gmail.com>"]
+readme = "README.md"
+packages = [{ include = "sssp_lab", from = "src" }]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.13"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.0"
+ruff = "^0.5.0"
+mypy = "^1.10.0"
+
+[tool.poetry.scripts]
+sssp-benchmark = "sssp_lab.cli:main"
+
+[build-system]
+requires = ["poetry-core>=1.9.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+mypy_path = "src"
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
