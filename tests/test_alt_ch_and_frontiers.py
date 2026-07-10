@@ -9,6 +9,7 @@ from sssp_lab.algorithms.alt import (
     high_degree_landmarks,
     random_landmarks,
 )
+from sssp_lab.algorithms.bellman_ford import NegativeCycleError
 from sssp_lab.algorithms.bmssp import bounded_multi_source_sssp
 from sssp_lab.algorithms.contraction_hierarchies import (
     build_ch_index,
@@ -19,7 +20,13 @@ from sssp_lab.algorithms.contraction_hierarchies import (
 from sssp_lab.algorithms.delta_stepping import delta_stepping
 from sssp_lab.algorithms.dijkstra_binary_heap import dijkstra
 from sssp_lab.algorithms.frontier_sssp import frontier_partition_sssp
-from sssp_lab.algorithms.negative_weight import johnson_sssp
+from sssp_lab.algorithms.negative_weight import (
+    check_against_bellman_ford,
+    decompose_by_edge_sign,
+    johnson_sssp,
+    scale_layers,
+    seeded_vertex_sample,
+)
 from sssp_lab.algorithms.thorup_like import build_distance_scale_buckets, thorup_integer_baseline
 from sssp_lab.graph import Graph
 from sssp_lab.utils import assert_same_distances, make_random_graph
@@ -258,3 +265,43 @@ def test_johnson_sssp_matches_bellman_ford_case() -> None:
     )
     result = johnson_sssp(graph, 0)
     assert result.distances[3] == 0
+
+
+def test_negative_weight_helpers_are_deterministic() -> None:
+    graph = Graph.from_edges(
+        [(0, 1, -2), (1, 2, 3), (0, 2, 5), (2, 3, -1)],
+        directed=True,
+    )
+
+    decomposition = decompose_by_edge_sign(graph)
+    layers = scale_layers(graph, scale=2)
+
+    assert len(decomposition.negative_edges) == 2
+    assert layers
+    assert seeded_vertex_sample(graph, probability=0.5, seed=9) == seeded_vertex_sample(
+        graph,
+        probability=0.5,
+        seed=9,
+    )
+
+
+def test_johnson_sssp_randomized_cases_match_bellman_ford() -> None:
+    cases = [
+        Graph.from_edges([(0, 1, 2), (1, 2, -1), (0, 2, 5)], directed=True),
+        Graph.from_edges([(0, 1, -1), (0, 2, 4), (1, 2, 2), (2, 3, 1)], directed=True),
+    ]
+
+    for graph in cases:
+        result = johnson_sssp(graph, 0)
+        check_against_bellman_ford(graph, 0, result)
+
+
+def test_johnson_sssp_detects_negative_cycle() -> None:
+    graph = Graph.from_edges([(0, 1, 1), (1, 2, -3), (2, 1, 1)], directed=True)
+
+    try:
+        johnson_sssp(graph, 0)
+    except NegativeCycleError:
+        pass
+    else:
+        raise AssertionError("negative cycle was not detected")
