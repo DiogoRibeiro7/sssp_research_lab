@@ -20,6 +20,9 @@ validation changes, and benchmark-relevant implementation work.
   boundary-label tracking.
 - Thorup-style thresholded component hierarchy scaffold for undirected positive
   integer graphs.
+- Simplified negative-weight decomposition experiment with sign decomposition,
+  absolute-weight scale rounds, seeded vertex samples, and Bellman-Ford-checked
+  Johnson results.
 - Markdown summaries for benchmark scripts.
 - Graph invariant tests covering distance optimality and predecessor chains.
 - Optional Rust acceleration package under `rust/sssp_accel` using PyO3 and
@@ -42,7 +45,8 @@ validation changes, and benchmark-relevant implementation work.
 
 - Roadmap and algorithm notes now reflect current coverage for Δ policies,
   repeated-source Δ-stepping, ALT landmarks, CH ordering, BMSSP recursion,
-  frontier data structures, and Thorup-style hierarchy scaffolding.
+  frontier data structures, Thorup-style hierarchy scaffolding, and
+  negative-weight decomposition experiments.
 - ALT benchmark tooling now supports selectable landmark strategies.
 - Frontier partition diagnostics now include incomplete-vertex and boundary-edge
   counts.

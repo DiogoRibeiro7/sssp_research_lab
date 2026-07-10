@@ -37,6 +37,8 @@
   Current coverage includes thresholded connected-component hierarchy levels
   with parent links across increasing integer edge-weight scales.
 - Implement simplified decomposition experiments for negative-weight near-linear SSSP.
+  Current coverage includes deterministic sign decomposition, absolute-weight
+  scale rounds, seeded vertex samples, and Bellman-Ford-checked Johnson results.
 
 ## Phase 4 — Article series
 

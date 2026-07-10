@@ -13,4 +13,5 @@
 | Frontier partition SSSP | experimental | no | expanding bounded frontiers | not a published algorithm implementation |
 | Incomplete-vertex index | experimental helper | no | boundary labels into unresolved vertices | not full 2026 machinery |
 | Thorup-like lab | scaffold + baseline | no | integer component hierarchy + radix baseline | not full Thorup algorithm |
+| Negative decomposition experiment | experimental helper | no | sign and scale decomposition with exact oracle | not near-linear randomized SSSP |
 | Johnson SSSP | yes | no | potentials + Dijkstra | not near-linear negative SSSP |

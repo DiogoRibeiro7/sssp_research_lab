@@ -40,6 +40,25 @@ class ScaleLayer:
     edges: tuple[Edge, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class NegativeDecompositionRound:
+    """One cumulative scale round in the negative-weight experiment."""
+
+    scale: int
+    edges: tuple[Edge, ...]
+    sampled_vertices: frozenset[Node]
+    reachable: frozenset[Node]
+
+
+@dataclass(frozen=True, slots=True)
+class NegativeDecompositionExperiment:
+    """Diagnostics and exact result for a simplified decomposition experiment."""
+
+    result: PathResult
+    sign_decomposition: SignDecomposition
+    rounds: tuple[NegativeDecompositionRound, ...]
+
+
 def decompose_by_edge_sign(graph: Graph) -> SignDecomposition:
     """Split edges by sign for deterministic negative-weight experiments."""
 
@@ -79,6 +98,15 @@ def check_against_bellman_ford(graph: Graph, source: Node, result: PathResult) -
     reference = bellman_ford(graph, source)
     if dict(result.distances) != dict(reference.distances):
         raise AssertionError("shortest-path distances differ from Bellman-Ford")
+
+
+def _graph_from_edges_with_nodes(nodes: frozenset[Node], edges: tuple[Edge, ...]) -> Graph:
+    graph = Graph(directed=True)
+    for node in nodes:
+        graph.add_node(node)
+    for edge in edges:
+        graph.add_edge(edge.source, edge.target, edge.weight)
+    return graph
 
 
 def johnson_potentials(graph: Graph, *, stats: OperationStats | None = None) -> PotentialResult:
@@ -149,3 +177,54 @@ def negative_weight_reference_sssp(
     """Correct reference for graphs with negative weights."""
 
     return bellman_ford(graph, source, stats=stats)
+
+
+def negative_decomposition_experiment(
+    graph: Graph,
+    source: Node,
+    *,
+    scale: int,
+    sample_probability: float = 0.5,
+    seed: int = 0,
+    stats: OperationStats | None = None,
+) -> NegativeDecompositionExperiment:
+    """Run a deterministic layered decomposition experiment for negative SSSP.
+
+    The rounds expose how cumulative absolute-weight layers grow reachability.
+    The returned shortest-path result is still computed exactly through Johnson
+    reweighting and checked against Bellman-Ford.
+    """
+
+    if scale <= 0:
+        raise ValueError("scale must be positive")
+    graph.require_node(source)
+    sign_decomposition = decompose_by_edge_sign(graph)
+    layers = scale_layers(graph, scale=scale)
+    rounds: list[NegativeDecompositionRound] = []
+    cumulative_edges: list[Edge] = []
+    for layer in layers:
+        cumulative_edges.extend(layer.edges)
+        subgraph = _graph_from_edges_with_nodes(graph.nodes, tuple(cumulative_edges))
+        partial = negative_weight_reference_sssp(subgraph, source, stats=stats)
+        rounds.append(
+            NegativeDecompositionRound(
+                scale=layer.scale,
+                edges=layer.edges,
+                sampled_vertices=seeded_vertex_sample(
+                    subgraph,
+                    probability=sample_probability,
+                    seed=seed + layer.scale,
+                ),
+                reachable=frozenset(
+                    node for node, distance in partial.distances.items() if distance < float("inf")
+                ),
+            )
+        )
+
+    result = johnson_sssp(graph, source, stats=stats)
+    check_against_bellman_ford(graph, source, result)
+    return NegativeDecompositionExperiment(
+        result=result,
+        sign_decomposition=sign_decomposition,
+        rounds=tuple(rounds),
+    )

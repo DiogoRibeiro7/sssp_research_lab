@@ -12,6 +12,10 @@ Current toy helpers in `negative_weight.py`:
 - `scale_layers(graph, scale=...)` groups edges by absolute weight scale.
 - `seeded_vertex_sample(graph, probability=..., seed=...)` provides
   reproducible random choices.
+- `negative_decomposition_experiment(...)` composes these helpers into
+  cumulative absolute-weight scale rounds, records deterministic sampled
+  vertices and reachable sets, then returns an exact Johnson result checked
+  against Bellman-Ford.
 - `check_against_bellman_ford(...)` records the correctness oracle used for
   experiments.
 
@@ -22,7 +26,7 @@ seed. They are scaffolding for experiments, not a claim of near-linear behavior.
 
 - The paper's graph decomposition.
 - Recursive or layered randomized structure.
-- Scale-sensitive relaxation schedule.
+- The paper's scale-sensitive relaxation schedule.
 - Probability analysis and high-probability correctness proof.
 
 ## Cycle Handling

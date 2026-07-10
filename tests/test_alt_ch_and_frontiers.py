@@ -11,7 +11,7 @@ from sssp_lab.algorithms.alt import (
     high_degree_landmarks,
     random_landmarks,
 )
-from sssp_lab.algorithms.bellman_ford import NegativeCycleError
+from sssp_lab.algorithms.bellman_ford import NegativeCycleError, bellman_ford
 from sssp_lab.algorithms.bmssp import bounded_multi_source_sssp, recursive_bmssp
 from sssp_lab.algorithms.contraction_hierarchies import (
     build_ch_index,
@@ -28,6 +28,7 @@ from sssp_lab.algorithms.negative_weight import (
     check_against_bellman_ford,
     decompose_by_edge_sign,
     johnson_sssp,
+    negative_decomposition_experiment,
     negative_weight_reference_sssp,
     scale_layers,
     seeded_vertex_sample,
@@ -511,6 +512,44 @@ def test_negative_weight_helpers_are_deterministic() -> None:
         probability=0.5,
         seed=9,
     )
+
+
+def test_negative_decomposition_experiment_matches_bellman_ford() -> None:
+    graph = Graph.from_edges(
+        [(0, 1, 2), (1, 2, -1), (0, 2, 5), (2, 3, 2), (1, 3, 4)],
+        directed=True,
+    )
+
+    experiment = negative_decomposition_experiment(
+        graph,
+        0,
+        scale=2,
+        sample_probability=0.5,
+        seed=11,
+    )
+
+    assert_same_distances(experiment.result.distances, bellman_ford(graph, 0).distances)
+    assert len(experiment.sign_decomposition.negative_edges) == 1
+    assert experiment.rounds
+    assert experiment.rounds[-1].reachable == frozenset({0, 1, 2, 3})
+    assert negative_decomposition_experiment(
+        graph,
+        0,
+        scale=2,
+        sample_probability=0.5,
+        seed=11,
+    ).rounds == experiment.rounds
+
+
+def test_negative_decomposition_experiment_validates_options() -> None:
+    graph = Graph.from_edges([(0, 1, -1)], directed=True)
+
+    try:
+        negative_decomposition_experiment(graph, 0, scale=0)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("invalid decomposition scale was accepted")
 
 
 def test_johnson_sssp_randomized_cases_match_bellman_ford() -> None:
