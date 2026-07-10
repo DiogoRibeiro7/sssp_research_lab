@@ -19,7 +19,18 @@ from sssp_lab.algorithms.stepping_variants import (
     stepping_engine,
 )
 from sssp_lab.graph import Graph
-from sssp_lab.utils import assert_same_distances, make_random_graph
+from sssp_lab.utils import (
+    assert_same_distances,
+    make_equal_weight_graph,
+    make_erdos_renyi_graph,
+    make_grid_graph,
+    make_heavy_tailed_graph,
+    make_layered_dag,
+    make_negative_dag,
+    make_random_graph,
+    make_road_like_graph,
+    make_wide_integer_weight_graph,
+)
 
 
 def test_dijkstra_path_reconstruction() -> None:
@@ -234,3 +245,32 @@ def test_generic_stepping_engine_accepts_partition_policy() -> None:
     )
 
     assert_same_distances(result.distances, dijkstra(graph, 0).distances)
+
+
+def test_graph_generators_support_property_style_checks() -> None:
+    graph_cases = [
+        make_erdos_renyi_graph(nodes=12, probability=0.2, directed=True, seed=1),
+        make_erdos_renyi_graph(nodes=12, probability=0.2, directed=False, seed=2),
+        make_grid_graph(4, 4, directed=False),
+        make_layered_dag(layers=4, width=3, seed=3),
+        make_road_like_graph(width=4, height=4, seed=4),
+        make_heavy_tailed_graph(nodes=12, edges=30, directed=True, seed=5),
+        make_equal_weight_graph(nodes=12, edges=30, directed=True, seed=6),
+        make_wide_integer_weight_graph(nodes=12, edges=30, directed=True, seed=7),
+    ]
+
+    for index, graph in enumerate(graph_cases):
+        reference = dijkstra(graph, 0)
+        result = delta_stepping(graph, 0, delta=3.0)
+        try:
+            assert_same_distances(result.distances, reference.distances)
+        except AssertionError as exc:
+            raise AssertionError(f"graph generator case {index} failed") from exc
+
+
+def test_negative_dag_generator_has_no_negative_cycle() -> None:
+    graph = make_negative_dag(nodes=12, edges=30, seed=8)
+
+    result = bellman_ford(graph, 0)
+
+    assert result.source == 0
