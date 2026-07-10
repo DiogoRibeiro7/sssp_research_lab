@@ -8,7 +8,7 @@ from sssp_lab.algorithms.frontier_sssp import frontier_partition_sssp
 from sssp_lab.algorithms.negative_weight import johnson_sssp
 from sssp_lab.algorithms.thorup_like import build_distance_scale_buckets, thorup_integer_baseline
 from sssp_lab.graph import Graph
-from sssp_lab.utils import assert_same_distances
+from sssp_lab.utils import assert_same_distances, make_random_graph
 
 
 def test_alt_query_matches_dijkstra() -> None:
@@ -41,6 +41,47 @@ def test_bounded_multi_source_sssp_exposes_frontier() -> None:
     assert 0 in result.settled
     assert 1 in result.settled
     assert 2 in result.frontier
+
+
+def test_bounded_multi_source_debug_invariants() -> None:
+    graph = Graph.from_edges([(0, 1, 1), (1, 2, 1), (0, 2, 5)], directed=True)
+
+    result = bounded_multi_source_sssp(graph, {0}, bound=2, debug=True)
+
+    assert result.settled == frozenset({0, 1})
+    assert 2 in result.frontier
+
+
+def test_bounded_multi_source_matches_dijkstra_on_random_graphs() -> None:
+    for seed in range(100):
+        graph = make_random_graph(
+            nodes=12,
+            edges=35,
+            directed=True,
+            min_weight=1,
+            max_weight=9,
+            seed=seed,
+        )
+        result = bounded_multi_source_sssp(graph, {0}, bound=float("inf"), debug=True)
+        assert_same_distances(result.distances, dijkstra(graph, 0).distances)
+
+
+def test_bounded_multi_source_layered_and_close_labels() -> None:
+    graph = Graph.from_edges(
+        [
+            (0, 1, 1.0),
+            (0, 2, 1.01),
+            (1, 3, 1.0),
+            (2, 3, 0.98),
+            (3, 4, 1.0),
+            (2, 5, 3.0),
+        ],
+        directed=True,
+    )
+
+    result = bounded_multi_source_sssp(graph, {0}, bound=float("inf"), debug=True)
+
+    assert_same_distances(result.distances, dijkstra(graph, 0).distances)
 
 
 def test_frontier_partition_matches_dijkstra() -> None:
