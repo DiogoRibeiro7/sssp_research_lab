@@ -24,9 +24,11 @@ from sssp_lab.algorithms.negative_weight import (
     check_against_bellman_ford,
     decompose_by_edge_sign,
     johnson_sssp,
+    negative_weight_reference_sssp,
     scale_layers,
     seeded_vertex_sample,
 )
+from sssp_lab.algorithms.stats import OperationStats
 from sssp_lab.algorithms.thorup_like import build_distance_scale_buckets, thorup_integer_baseline
 from sssp_lab.graph import Graph
 from sssp_lab.utils import assert_same_distances, make_random_graph
@@ -265,6 +267,26 @@ def test_johnson_sssp_matches_bellman_ford_case() -> None:
     )
     result = johnson_sssp(graph, 0)
     assert result.distances[3] == 0
+
+
+def test_negative_weight_algorithms_populate_stats() -> None:
+    graph = Graph.from_edges(
+        [(0, 1, 1), (1, 2, -2), (0, 2, 5), (2, 3, 1)],
+        directed=True,
+    )
+    johnson_stats = OperationStats()
+    reference_stats = OperationStats()
+
+    result = johnson_sssp(graph, 0, stats=johnson_stats)
+    reference = negative_weight_reference_sssp(graph, 0, stats=reference_stats)
+
+    assert_same_distances(result.distances, reference.distances)
+    assert johnson_stats.relaxations > 0
+    assert johnson_stats.queue_pushes > 0
+    assert johnson_stats.queue_pops > 0
+    assert johnson_stats.settled_nodes >= len(graph.nodes)
+    assert reference_stats.relaxations > 0
+    assert reference_stats.settled_nodes == len(graph.nodes)
 
 
 def test_negative_weight_helpers_are_deterministic() -> None:

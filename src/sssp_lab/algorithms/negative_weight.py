@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 from sssp_lab.algorithms.bellman_ford import bellman_ford
 from sssp_lab.algorithms.dijkstra_binary_heap import dijkstra
+from sssp_lab.algorithms.stats import OperationStats
 from sssp_lab.graph import Edge, Graph, Node, PathResult
 
 
@@ -80,7 +81,7 @@ def check_against_bellman_ford(graph: Graph, source: Node, result: PathResult) -
         raise AssertionError("shortest-path distances differ from Bellman-Ford")
 
 
-def johnson_potentials(graph: Graph) -> PotentialResult:
+def johnson_potentials(graph: Graph, *, stats: OperationStats | None = None) -> PotentialResult:
     """Compute Johnson potentials and a non-negative reweighted graph.
 
     A synthetic super-source is connected to every node with a zero-weight edge.
@@ -96,7 +97,7 @@ def johnson_potentials(graph: Graph) -> PotentialResult:
     for edge in graph.iter_edges():
         augmented.add_edge(edge.source, edge.target, edge.weight)
 
-    bf = bellman_ford(augmented, super_source)
+    bf = bellman_ford(augmented, super_source, stats=stats)
     potentials = {node: bf.distances[node] for node in graph.nodes}
 
     reweighted = Graph(directed=True)
@@ -111,7 +112,12 @@ def johnson_potentials(graph: Graph) -> PotentialResult:
     return PotentialResult(potentials=potentials, reweighted_graph=reweighted)
 
 
-def johnson_sssp(graph: Graph, source: Node) -> PathResult:
+def johnson_sssp(
+    graph: Graph,
+    source: Node,
+    *,
+    stats: OperationStats | None = None,
+) -> PathResult:
     """Compute SSSP with Johnson reweighting and Dijkstra.
 
     This handles negative edges if there is no reachable negative cycle. It is
@@ -119,8 +125,8 @@ def johnson_sssp(graph: Graph, source: Node) -> PathResult:
     """
 
     graph.require_node(source)
-    potential_result = johnson_potentials(graph)
-    weighted = dijkstra(potential_result.reweighted_graph, source)
+    potential_result = johnson_potentials(graph, stats=stats)
+    weighted = dijkstra(potential_result.reweighted_graph, source, stats=stats)
     distances: dict[Node, float] = {}
     for node, distance in weighted.distances.items():
         if distance == float("inf"):
@@ -134,7 +140,12 @@ def johnson_sssp(graph: Graph, source: Node) -> PathResult:
     return PathResult(source=source, distances=distances, predecessors=weighted.predecessors)
 
 
-def negative_weight_reference_sssp(graph: Graph, source: Node) -> PathResult:
+def negative_weight_reference_sssp(
+    graph: Graph,
+    source: Node,
+    *,
+    stats: OperationStats | None = None,
+) -> PathResult:
     """Correct reference for graphs with negative weights."""
 
-    return bellman_ford(graph, source)
+    return bellman_ford(graph, source, stats=stats)
