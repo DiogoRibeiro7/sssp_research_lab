@@ -58,6 +58,29 @@ def wide_weight_graph(nodes: int, edges: int, seed: int) -> Graph:
     )
 
 
+def write_markdown_summary(rows: list[dict[str, object]], output: Path) -> None:
+    """Write a compact markdown summary table for policy comparisons."""
+
+    lines = [
+        "| graph family | policy | delta | seconds | relaxations | bucket phases | max bucket size |",
+        "|---|---|---:|---:|---:|---:|---:|",
+    ]
+    for row in rows:
+        lines.append(
+            "| {graph_family} | {policy} | {delta:.6f} | {seconds:.6f} | "
+            "{relaxations} | {bucket_phases} | {max_bucket_size} |".format(
+                graph_family=row["graph_family"],
+                policy=row["policy"],
+                delta=float(row["delta"]),
+                seconds=float(row["seconds"]),
+                relaxations=row["relaxations"],
+                bucket_phases=row["bucket_phases"],
+                max_bucket_size=row["max_bucket_size"],
+            )
+        )
+    output.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Compare stepping Δ policies.")
     parser.add_argument("--nodes", type=int, default=500)
@@ -105,9 +128,12 @@ def main() -> None:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
         writer.writeheader()
         writer.writerows(rows)
+    markdown_output = args.output.with_suffix(".md")
+    write_markdown_summary(rows, markdown_output)
 
     print(f"Wrote {args.output}")
     print(f"Wrote {csv_output}")
+    print(f"Wrote {markdown_output}")
 
 
 if __name__ == "__main__":

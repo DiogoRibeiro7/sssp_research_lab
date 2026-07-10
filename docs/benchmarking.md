@@ -30,7 +30,17 @@ The benchmark should compare algorithms under graph families where ordering pres
 - Every negative-weight algorithm must match Bellman-Ford on small graphs.
 - ALT and CH must match point-to-point Dijkstra for all sampled pairs.
 - Benchmarks must include deterministic seeds.
-- Results must be exported as JSON and CSV.
+- Results must be exported as JSON, CSV, and markdown summaries for quick review.
+
+## Local commands
+
+```bash
+python scripts/benchmark_sssp.py --nodes 1000 --edges 5000 --output .benchmarks/sssp.json
+python scripts/benchmark_delta_sweep.py --nodes 1000 --edges 5000 --output .benchmarks/delta_sweep.json
+python scripts/benchmark_stepping_policies.py --nodes 500 --edges 2500 --output .benchmarks/stepping_policies.json
+```
+
+Each command writes `.json`, `.csv`, and `.md` files with the same base path.
 
 ## Rust acceleration baseline
 

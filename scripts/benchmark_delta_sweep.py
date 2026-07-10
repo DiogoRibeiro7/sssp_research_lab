@@ -30,6 +30,28 @@ def parse_deltas(raw: str) -> list[float]:
     return values
 
 
+def write_markdown_summary(rows: list[dict[str, object]], output: Path) -> None:
+    """Write a compact markdown summary table for a Δ sweep."""
+
+    lines = [
+        "| delta | seconds | reachable | relaxations | bucket phases | max bucket size |",
+        "|---:|---:|---:|---:|---:|---:|",
+    ]
+    for row in rows:
+        lines.append(
+            "| {delta:g} | {seconds:.6f} | {reachable} | {relaxations} | "
+            "{bucket_phases} | {max_bucket_size} |".format(
+                delta=float(row["delta"]),
+                seconds=float(row["seconds"]),
+                reachable=row["reachable"],
+                relaxations=row["relaxations"],
+                bucket_phases=row["bucket_phases"],
+                max_bucket_size=row["max_bucket_size"],
+            )
+        )
+    output.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Sweep Δ values for sequential Δ-stepping.")
     parser.add_argument("--nodes", type=int, default=1000)
@@ -73,9 +95,12 @@ def main() -> None:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
         writer.writeheader()
         writer.writerows(rows)
+    markdown_output = args.output.with_suffix(".md")
+    write_markdown_summary(rows, markdown_output)
 
     print(f"Wrote {args.output}")
     print(f"Wrote {csv_output}")
+    print(f"Wrote {markdown_output}")
 
 
 if __name__ == "__main__":
