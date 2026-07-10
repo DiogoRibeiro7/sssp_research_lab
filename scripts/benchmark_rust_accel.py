@@ -37,6 +37,57 @@ CSRRunner = Callable[[CSRGraph, int], PathResult]
 CSRBatchRunner = Callable[[CSRGraph, tuple[int, ...]], list[PathResult]]
 
 
+def python_baseline_name(algorithm: str) -> str | None:
+    """Map a benchmark row to the comparable Python baseline algorithm."""
+
+    if algorithm.startswith("dijkstra"):
+        return "dijkstra"
+    if algorithm.startswith("dial_circular"):
+        return "dial_circular"
+    return None
+
+
+def add_speedups(rows: list[dict[str, object]]) -> None:
+    """Add speedup relative to matching Python baseline rows in place."""
+
+    baselines = {
+        str(row["algorithm"]): float(row["seconds"])
+        for row in rows
+        if row["backend"] == "python" and row["algorithm"] in {"dijkstra", "dial_circular"}
+    }
+    for row in rows:
+        baseline_name = python_baseline_name(str(row["algorithm"]))
+        baseline = baselines.get(baseline_name or "")
+        if row["backend"] == "python" or baseline is None:
+            row["speedup_vs_python"] = ""
+        else:
+            row["speedup_vs_python"] = baseline / float(row["seconds"])
+
+
+def write_markdown_summary(rows: list[dict[str, object]], output: Path) -> None:
+    """Write a compact markdown benchmark summary."""
+
+    lines = [
+        "| algorithm | backend | sources | seconds | seconds/source | speedup vs python |",
+        "|---|---|---:|---:|---:|---:|",
+    ]
+    for row in rows:
+        speedup = row["speedup_vs_python"]
+        speedup_text = "" if speedup == "" else f"{float(speedup):.2f}x"
+        lines.append(
+            "| {algorithm} | {backend} | {source_count} | {seconds:.6f} | "
+            "{seconds_per_source:.6f} | {speedup} |".format(
+                algorithm=row["algorithm"],
+                backend=row["backend"],
+                source_count=row["source_count"],
+                seconds=float(row["seconds"]),
+                seconds_per_source=float(row["seconds_per_source"]),
+                speedup=speedup_text,
+            )
+        )
+    output.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def select_sources(graph: Graph, count: int) -> tuple[int, ...]:
     """Select deterministic source nodes for repeated-query benchmarks."""
 
@@ -221,6 +272,7 @@ def main() -> None:
         for result, reference in zip(results, reference_results, strict=True):
             assert_same_distances(result.distances, reference.distances)
         serializable_rows.append(row)
+    add_speedups(serializable_rows)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(serializable_rows, indent=2), encoding="utf-8")
@@ -229,9 +281,12 @@ def main() -> None:
         writer = csv.DictWriter(handle, fieldnames=list(serializable_rows[0]))
         writer.writeheader()
         writer.writerows(serializable_rows)
+    markdown_output = args.output.with_suffix(".md")
+    write_markdown_summary(serializable_rows, markdown_output)
 
     print(f"Wrote {args.output}")
     print(f"Wrote {csv_output}")
+    print(f"Wrote {markdown_output}")
     if not rust_backend_available():
         print("Rust backend is not installed; wrote Python-only comparison rows.")
 

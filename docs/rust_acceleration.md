@@ -33,7 +33,7 @@ python scripts/benchmark_rust_accel.py --require-rust
 Without the extension installed, the wrapper raises `RustBackendUnavailable` and
 the optional kernel tests are skipped.
 
-The benchmark script writes JSON and CSV rows comparing Python and Rust
+The benchmark script writes JSON, CSV, and markdown rows comparing Python and Rust
 implementations. Without `--require-rust`, it still writes Python-only baseline
 rows so benchmark automation can run before the optional wheel is installed.
 When the Rust backend is installed, the output includes both end-to-end wrapper
@@ -42,6 +42,7 @@ conversion overhead from kernel runtime for repeated-query experiments.
 Use `--sources N` to run several deterministic source nodes and report both
 total runtime and `seconds_per_source`. The `*_csr_batch` rows call Rust once
 with every source to measure Python call overhead separately from kernel work.
+Rows with matching Python baselines include `speedup_vs_python`.
 
 CI builds the maturin wheel in a dedicated job and copies the compiled extension
 into `src/sssp_lab` with `scripts/install_built_rust_extension.py` before running
