@@ -8,7 +8,15 @@ from sssp_lab.algorithms.dial import dial_sssp
 from sssp_lab.algorithms.dijkstra_binary_heap import dijkstra
 from sssp_lab.algorithms.dijkstra_radix import dijkstra_radix_heap
 from sssp_lab.algorithms.stats import OperationStats
-from sssp_lab.algorithms.stepping_variants import policy_delta_stepping
+from sssp_lab.algorithms.stepping_variants import (
+    adaptive_bucket_delta,
+    degree_adjusted_delta,
+    mean_weight_delta,
+    median_weight_delta,
+    percentile_weight_delta,
+    policy_delta_stepping,
+    stepping_engine,
+)
 from sssp_lab.graph import Graph
 from sssp_lab.utils import assert_same_distances, make_random_graph
 
@@ -135,3 +143,41 @@ def test_delta_stepping_matches_dijkstra_over_delta_values(delta: float) -> None
     assert_same_distances(result.distances, dijkstra(graph, 0).distances)
     assert stats.bucket_phases > 0
     assert stats.light_relaxations + stats.heavy_relaxations == stats.relaxations
+
+
+@pytest.mark.parametrize(
+    "policy",
+    [
+        median_weight_delta,
+        mean_weight_delta,
+        percentile_weight_delta(75),
+        degree_adjusted_delta,
+        adaptive_bucket_delta,
+    ],
+)
+def test_stepping_policies_match_dijkstra(policy: object) -> None:
+    graph = make_random_graph(
+        nodes=20,
+        edges=80,
+        directed=True,
+        min_weight=1,
+        max_weight=25,
+        seed=33,
+    )
+
+    result = policy_delta_stepping(graph, 0, delta_policy=policy)  # type: ignore[arg-type]
+
+    assert_same_distances(result.distances, dijkstra(graph, 0).distances)
+
+
+def test_generic_stepping_engine_accepts_partition_policy() -> None:
+    graph = Graph.from_edges([(0, 1, 1), (1, 2, 5), (0, 2, 10)], directed=True)
+
+    result = stepping_engine(
+        graph,
+        0,
+        delta=2.0,
+        edge_partition_policy=lambda weight, delta: weight < delta,
+    )
+
+    assert_same_distances(result.distances, dijkstra(graph, 0).distances)
