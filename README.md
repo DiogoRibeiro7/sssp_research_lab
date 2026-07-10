@@ -101,6 +101,7 @@ algorithms remain the correctness reference.
 cd rust/sssp_accel
 maturin develop
 python -m pytest tests/test_rust_accel.py
+python scripts/benchmark_rust_accel.py --require-rust
 ```
 
 See `docs/rust_acceleration.md` for the design boundary and wrapper API.

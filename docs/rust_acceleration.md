@@ -27,10 +27,15 @@ Then run:
 
 ```bash
 python -m pytest tests/test_rust_accel.py
+python scripts/benchmark_rust_accel.py --require-rust
 ```
 
 Without the extension installed, the wrapper raises `RustBackendUnavailable` and
 the optional kernel tests are skipped.
+
+The benchmark script writes JSON and CSV rows comparing Python and Rust
+implementations. Without `--require-rust`, it still writes Python-only baseline
+rows so benchmark automation can run before the optional wheel is installed.
 
 ## Design Boundary
 
