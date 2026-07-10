@@ -1,8 +1,9 @@
 # Thorup Integer SSSP Notes
 
 Thorup's linear-time undirected SSSP algorithm relies on a component hierarchy,
-integer buckets over components, and word-RAM assumptions. The repository does
-not implement that hierarchy yet.
+integer buckets over components, and word-RAM assumptions. The repository now
+includes a deterministic thresholded component hierarchy scaffold, but not the
+full algorithm or its linear-time priority operations.
 
 ## Current Code
 
@@ -12,11 +13,13 @@ not implement that hierarchy yet.
   weights,
 - a radix-heap Dijkstra baseline for correctness checks,
 - distance-scale buckets that are useful when experimenting with future
-  component hierarchy code.
+  component hierarchy code,
+- `build_component_hierarchy(...)`, which groups vertices into connected
+  components at increasing integer edge-weight scales and records parent links
+  between levels.
 
 ## Missing Algorithmic Components
 
-- Component hierarchy construction.
 - Component-level bucket traversal rules.
 - Word-RAM integer priority operations.
 - Proof-level invariants for the hierarchy.

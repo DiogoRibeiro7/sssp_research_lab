@@ -12,5 +12,5 @@
 | Bounded multi-source primitive | yes | no | bounded frontier expansion | not full BMSSP theorem |
 | Frontier partition SSSP | experimental | no | expanding bounded frontiers | not a published algorithm implementation |
 | Incomplete-vertex index | experimental helper | no | boundary labels into unresolved vertices | not full 2026 machinery |
-| Thorup-like lab | baseline only | no | integer component lab | not full Thorup hierarchy |
+| Thorup-like lab | scaffold + baseline | no | integer component hierarchy + radix baseline | not full Thorup algorithm |
 | Johnson SSSP | yes | no | potentials + Dijkstra | not near-linear negative SSSP |

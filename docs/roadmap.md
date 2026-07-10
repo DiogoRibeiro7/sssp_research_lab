@@ -34,6 +34,8 @@
   Current coverage includes an incomplete-vertex index with boundary-edge and
   boundary-label tracking for frontier experiments.
 - Implement Thorup's component hierarchy for undirected integer SSSP.
+  Current coverage includes thresholded connected-component hierarchy levels
+  with parent links across increasing integer edge-weight scales.
 - Implement simplified decomposition experiments for negative-weight near-linear SSSP.
 
 ## Phase 4 — Article series

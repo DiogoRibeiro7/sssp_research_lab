@@ -33,7 +33,11 @@ from sssp_lab.algorithms.negative_weight import (
     seeded_vertex_sample,
 )
 from sssp_lab.algorithms.stats import OperationStats
-from sssp_lab.algorithms.thorup_like import build_distance_scale_buckets, thorup_integer_baseline
+from sssp_lab.algorithms.thorup_like import (
+    build_component_hierarchy,
+    build_distance_scale_buckets,
+    thorup_integer_baseline,
+)
 from sssp_lab.graph import Graph
 from sssp_lab.utils import assert_same_distances, make_random_graph
 
@@ -387,6 +391,45 @@ def test_thorup_like_baseline_and_buckets() -> None:
     buckets = build_distance_scale_buckets(result, scale=2)
     assert result.distances[3] == 6
     assert buckets
+
+
+def test_thorup_component_hierarchy_tracks_scale_components() -> None:
+    graph = Graph.from_edges(
+        [(0, 1, 1), (1, 2, 4), (2, 3, 8), (4, 5, 2)],
+        directed=False,
+    )
+
+    hierarchy = build_component_hierarchy(graph, scales=(1, 4, 8))
+
+    assert [len(level) for level in hierarchy.levels] == [5, 3, 2]
+    assert hierarchy.component_path(0)[0] == hierarchy.component_path(1)[0]
+    assert hierarchy.component_path(0)[1] == hierarchy.component_path(2)[1]
+    assert hierarchy.component_path(0)[2] == hierarchy.component_path(3)[2]
+    assert hierarchy.component_path(4)[2] == hierarchy.component_path(5)[2]
+    assert hierarchy.component_path(0)[2] != hierarchy.component_path(4)[2]
+    assert all(component.parent is not None for component in hierarchy.levels[0])
+    assert all(component.parent is None for component in hierarchy.levels[-1])
+
+
+def test_thorup_component_hierarchy_uses_default_powers_of_two() -> None:
+    graph = Graph.from_edges([(0, 1, 3), (1, 2, 9)], directed=False)
+
+    hierarchy = build_component_hierarchy(graph)
+
+    assert [level[0].scale for level in hierarchy.levels] == [1, 2, 4, 8, 16]
+    assert hierarchy.component_path(0)[-1] == hierarchy.component_path(2)[-1]
+
+
+def test_thorup_component_hierarchy_validates_scales() -> None:
+    graph = Graph.from_edges([(0, 1, 1)], directed=False)
+
+    for scales in [(), (0,), (2, 1)]:
+        try:
+            build_component_hierarchy(graph, scales=scales)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid component hierarchy scale was accepted")
 
 
 def test_thorup_like_rejects_out_of_scope_graphs() -> None:
