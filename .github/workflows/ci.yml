@@ -29,3 +29,25 @@ jobs:
         run: pytest
       - name: Rust tests
         run: cargo test --manifest-path rust/sssp_accel/Cargo.toml
+
+  rust-extension:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest maturin
+      - name: Build Rust extension wheel
+        working-directory: rust/sssp_accel
+        run: python -m maturin build --release
+      - name: Install extension into source tree
+        run: |
+          python scripts/install_built_rust_extension.py rust/sssp_accel/target/wheels/*.whl
+      - name: Rust Python integration tests
+        run: |
+          python -m pytest tests/test_rust_accel.py
+          python scripts/benchmark_rust_accel.py --nodes 40 --edges 120 --require-rust --output .benchmarks/ci_rust_accel.json

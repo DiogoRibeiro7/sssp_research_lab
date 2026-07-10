@@ -7,6 +7,8 @@ __pycache__/
 .benchmarks/
 rust/sssp_accel/target/
 src/sssp_lab/*.pyd
+src/sssp_lab/*.so
+src/sssp_lab/*.dylib
 dist/
 build/
 *.egg-info/
