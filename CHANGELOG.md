@@ -6,7 +6,10 @@ validation changes, and benchmark-relevant implementation work.
 
 ## Unreleased
 
-No unreleased changes.
+### Changed
+
+- Restored the Zenodo DOI placeholder in the README badge and BibTeX citation
+  so the minted record id can be filled in after archival.
 
 ## 1.0.0 - 2026-07-11
 
