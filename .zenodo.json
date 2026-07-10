@@ -1,0 +1,27 @@
+{
+  "title": "SSSP Research Lab: Implementable Shortest-Path Algorithms Inspired by Sorting-Barrier SSSP Research",
+  "description": "<p>A Python research repository exploring the question of how much ordering a single-source shortest-path algorithm really needs. It provides reliable reference implementations (Dijkstra with binary heaps, Dial buckets, and radix heaps), educational versions of delta-stepping, ALT, contraction hierarchies, and Bellman-Ford, and experimental scaffolds inspired by frontier results on breaking the sorting barrier for directed SSSP, Thorup's linear-time integer SSSP, and near-linear negative-weight SSSP.</p><p>An optional PyO3/maturin Rust extension accelerates CSR-based Dijkstra and Dial kernels while the Python implementations remain the correctness reference.</p>",
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "cc-by-4.0",
+  "version": "1.0.0",
+  "creators": [
+    {
+      "name": "Ribeiro, Diogo",
+      "affiliation": "ESMAD, Polytechnic Institute of Porto",
+      "orcid": "0009-0001-2022-7072"
+    }
+  ],
+  "keywords": [
+    "shortest paths",
+    "single-source shortest paths",
+    "Dijkstra",
+    "delta-stepping",
+    "radix heap",
+    "contraction hierarchies",
+    "ALT",
+    "sorting barrier",
+    "graph algorithms",
+    "algorithm engineering"
+  ]
+}

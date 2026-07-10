@@ -1,5 +1,7 @@
 # SSSP Research Lab
 
+[![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
+
 A Python research repository for shortest-path algorithms around the theme:
 
 > **How much ordering does a shortest-path algorithm really need?**
@@ -17,10 +19,10 @@ The repo is designed as an implementation lab for papers related to BMSSP and th
 | `bellman_ford.py` | Bellman-Ford | working reference | negative allowed, no negative cycles | directed/undirected |
 | `alt.py` | ALT point-to-point shortest paths | working | non-negative real | directed/undirected |
 | `contraction_hierarchies.py` | Contraction Hierarchies | working small-graph educational version | non-negative real | directed/undirected |
-| `bmssp.py` | Bounded multi-source SSSP primitive | working primitive, not a proof-level BMSSP paper implementation | non-negative real | directed/undirected |
+| `bmssp.py` | Bounded multi-source SSSP + recursive scaffold | working scaffold, not a proof-level BMSSP paper implementation | non-negative real | directed/undirected |
 | `frontier_sssp.py` | Frontier-partition SSSP experiment inspired by 2026 directed SSSP | experimental | non-negative real | directed |
-| `thorup_like.py` | Integer SSSP lab helpers inspired by Thorup | experimental helper, not Thorup's full component hierarchy | non-negative integer | undirected |
-| `negative_weight.py` | Johnson potentials + Bellman-Ford fallback | working educational baseline, not near-linear Bernstein-Nanongkai-Wulff-Nilsen | integer/real negative allowed | directed |
+| `thorup_like.py` | Integer SSSP lab helpers inspired by Thorup | component hierarchy scaffold + radix baseline, not Thorup's full algorithm | non-negative integer | undirected |
+| `negative_weight.py` | Johnson, Bellman-Ford, and decomposition experiments | working educational baseline, not near-linear Bernstein-Nanongkai-Wulff-Nilsen | integer/real negative allowed | directed |
 
 The research-frontier papers are difficult enough that a clean Python repository should be honest about what is exact, what is educational, and what is a scaffold for a coding agent. The prompts in `prompts/` are meant to harden the frontier modules step by step.
 
@@ -94,6 +96,57 @@ python scripts/benchmark_sssp.py --nodes 1000 --edges 5000
 Release notes live in `CHANGELOG.md`; the repeatable release checklist is in
 `docs/release_process.md`.
 
+## Benchmark outputs
+
+Every benchmark script is deterministic (seeded) and writes three files that
+share a base path under `.benchmarks/`: a machine-readable `.json`, a flat
+`.csv` for spreadsheets, and a `.md` summary table for quick review. See
+`docs/benchmarking.md` for the graph families, metrics, and acceptance criteria.
+
+| Script | Output base (`.json` / `.csv` / `.md`) | What it measures |
+|---|---|---|
+| `scripts/benchmark_sssp.py` | `.benchmarks/sssp.*` | Per-algorithm runtime and reachable-node count on one graph. |
+| `scripts/benchmark_delta_sweep.py` | `.benchmarks/delta_sweep.*` | Δ-stepping across a range of Δ values with relaxation/queue/bucket instrumentation. |
+| `scripts/benchmark_stepping_policies.py` | `.benchmarks/stepping_policies.*` | Stepping policies compared across graph families and seeds. |
+| `scripts/benchmark_parallel_delta.py` | `.benchmarks/parallel_delta.*` | Multi-source Δ-stepping across worker counts, with per-source timing. |
+| `scripts/benchmark_alt.py` | `.benchmarks/alt.*` | ALT vs. plain Dijkstra for sampled point-to-point queries. |
+| `scripts/benchmark_rust_accel.py` | `.benchmarks/rust_accel.*` | Rust vs. Python kernels with `speedup_vs_python`. |
+| `scripts/profile_rust_accel.py` | `.benchmarks/rust_profile.*` | Top cumulative Python functions per phase (`.json` / `.md` only). |
+
+### Data dictionary
+
+Columns are a union across the benchmark outputs; each file contains the subset
+relevant to its script.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `algorithm` | string | Algorithm/kernel variant identifier (e.g. `binary_heap_dijkstra`, `delta_stepping_delta_5`). |
+| `backend` | string | Execution backend: `python` or `rust` (Rust benchmarks only). |
+| `graph_family` | string | Generated graph family (see `docs/benchmarking.md`), e.g. `road_like`, `layered_dag`. |
+| `policy` | string | Stepping policy under test (stepping-policy benchmark). |
+| `mode` | string | Parallel execution mode for multi-source Δ-stepping. |
+| `delta` | number | Δ value used by the stepping algorithm. |
+| `seed` | integer | Deterministic RNG seed used to generate the graph. |
+| `source` / `target` | integer | Endpoint node ids for point-to-point (ALT) queries. |
+| `source_count` / `workers` | integer | Number of sources queried / worker threads used. |
+| `seconds` | number | Wall-clock runtime for the run, in seconds. |
+| `seconds_per_source` | number | `seconds` divided by `source_count` for multi-source runs. |
+| `dijkstra_seconds` / `alt_seconds` | number | Per-query runtime for the Dijkstra baseline and ALT (ALT benchmark). |
+| `speedup_vs_python` | number | Rust runtime speedup relative to the Python baseline (Rust benchmark). |
+| `reachable` | integer | Number of nodes reached from the source(s). |
+| `relaxations` | integer | Total edge relaxations performed. |
+| `light_relaxations` / `heavy_relaxations` | integer | Light- vs. heavy-edge relaxations (Δ-stepping). |
+| `queue_pushes` / `queue_pops` | integer | Priority-queue insertions and extractions. |
+| `stale_pops` | integer | Queue extractions discarded as outdated. |
+| `settled_nodes` | integer | Nodes finalized with a confirmed shortest distance. |
+| `bucket_phases` | integer | Number of bucket-processing phases (Δ-stepping / Dial). |
+| `bucket_insertions` / `bucket_reinserts` | integer | Bucket insertions and re-insertions from relaxations. |
+| `max_bucket_size` | integer | Peak occupancy of any single bucket. |
+| `heuristic_evaluations` / `alt_heuristic_evaluations` | integer | Landmark/heuristic lower-bound evaluations. |
+| `alt_heap_pops` / `alt_settled_nodes` | integer | Heap extractions / settled nodes for the ALT query. |
+| `phase` | string | Profiler phase (graph generation, Python baseline, workspace prep, wrapper, prepared, batched). |
+| `top_cumulative` | list | Top cumulative-time Python functions for the phase (profiler output). |
+
 ## Optional Rust acceleration
 
 The repository includes an optional PyO3/maturin extension under
@@ -109,3 +162,59 @@ python scripts/benchmark_rust_accel.py --require-rust
 
 See `docs/rust_acceleration.md` for the design boundary and wrapper API, and
 `docs/packaging.md` for Python-only, local-extension, and wheel install flows.
+
+## How to cite
+
+If you use this repository in academic work, please cite it. Citation metadata
+lives in `CITATION.cff` (GitHub renders a "Cite this repository" button from it,
+and tools such as `cffconvert` can export BibTeX/APA/RIS).
+
+For the source repository, cite:
+
+```bibtex
+@software{ribeiro_sssp_research_lab_2026,
+  author    = {Ribeiro, Diogo},
+  title      = {{SSSP Research Lab: Implementable Shortest-Path Algorithms
+                Inspired by Sorting-Barrier SSSP Research}},
+  year       = {2026},
+  version    = {1.0.0},
+  url        = {https://github.com/DiogoRibeiro7/sssp_research_lab}
+}
+```
+
+After Zenodo archives a release, prefer the version DOI for exact
+reproducibility or the concept DOI to cite the latest archived release.
+
+## License
+
+This work is licensed under the [Creative Commons Attribution 4.0 International
+License (CC-BY-4.0)](https://creativecommons.org/licenses/by/4.0/). You are free
+to share and adapt the material for any purpose, including commercially, provided
+you give appropriate credit. The full legal code is in `LICENSE`.
+
+## Publishing
+
+Releases are archived on [Zenodo](https://zenodo.org) via its GitHub integration
+so that each tagged release receives a citable DOI.
+
+1. Ensure the repository is **public** on GitHub and `main` is pushed and
+   CI-green.
+2. Enable the repository at
+   <https://zenodo.org/account/settings/github/> (toggle it **ON**) **before**
+   creating the release.
+3. Tag and publish a release:
+
+   ```bash
+   git tag -a v1.0.0 -m "First public release"
+   git push origin v1.0.0
+   gh release create v1.0.0 --title "v1.0.0" --notes "First public release."
+   ```
+
+4. Zenodo mints a **concept DOI** (always-latest) and a **version DOI** for the
+   release. Add the concept DOI badge after the record exists, and use the
+   version DOI for versioned citations. On the Zenodo record, link the
+   affiliation to its **ROR** and attach the author **ORCID**.
+
+Keep the version in `pyproject.toml` and `CITATION.cff` in sync, and record
+user-visible changes in `CHANGELOG.md`. The repeatable checklist lives in
+`docs/release_process.md`.

@@ -6,6 +6,10 @@ validation changes, and benchmark-relevant implementation work.
 
 ## Unreleased
 
+No unreleased changes.
+
+## 1.0.0 - 2026-07-11
+
 ### Added
 
 - Trimmed-mean Δ-selection policy for stepping experiments.
