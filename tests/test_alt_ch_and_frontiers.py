@@ -1,6 +1,14 @@
 from __future__ import annotations
 
-from sssp_lab.algorithms.alt import alt_query, build_alt_index
+from sssp_lab.algorithms.alt import (
+    ALTQueryStats,
+    alt_query,
+    build_alt_index,
+    farthest_first_landmarks,
+    grid_corner_landmarks,
+    high_degree_landmarks,
+    random_landmarks,
+)
 from sssp_lab.algorithms.bmssp import bounded_multi_source_sssp
 from sssp_lab.algorithms.contraction_hierarchies import build_ch_index, ch_query
 from sssp_lab.algorithms.delta_stepping import delta_stepping
@@ -22,6 +30,53 @@ def test_alt_query_matches_dijkstra() -> None:
     assert distance == dijkstra(graph, 0).distances[4]
     assert path[0] == 0
     assert path[-1] == 4
+
+
+def _grid_graph(width: int, height: int, *, directed: bool) -> Graph:
+    edges: list[tuple[int, int, float]] = []
+    for row in range(height):
+        for col in range(width):
+            node = row * width + col
+            if col + 1 < width:
+                edges.append((node, node + 1, 1.0))
+            if row + 1 < height:
+                edges.append((node, node + width, 1.0))
+    return Graph.from_edges(edges, directed=directed)
+
+
+def test_alt_landmark_strategies() -> None:
+    graph = _grid_graph(4, 4, directed=False)
+
+    assert len(random_landmarks(graph, count=3, seed=1)) == 3
+    assert high_degree_landmarks(graph, count=2)
+    assert len(farthest_first_landmarks(graph, count=3)) == 3
+    assert grid_corner_landmarks(width=4, height=4) == (0, 3, 12, 15)
+
+
+def test_alt_query_stats_on_directed_and_undirected_graphs() -> None:
+    for directed in [True, False]:
+        graph = _grid_graph(4, 4, directed=directed)
+        index = build_alt_index(graph, grid_corner_landmarks(width=4, height=4))
+        stats = ALTQueryStats()
+
+        distance, path = alt_query(graph, 0, 15, index, stats=stats)
+
+        assert distance == dijkstra(graph, 0).distances[15]
+        assert path[0] == 0
+        assert path[-1] == 15
+        assert stats.heap_pops > 0
+        assert stats.heuristic_evaluations > 0
+
+
+def test_alt_settles_fewer_nodes_than_full_dijkstra_on_grid() -> None:
+    graph = _grid_graph(5, 5, directed=False)
+    index = build_alt_index(graph, grid_corner_landmarks(width=5, height=5))
+    alt_stats = ALTQueryStats()
+
+    distance, _ = alt_query(graph, 0, 24, index, stats=alt_stats)
+
+    assert distance == dijkstra(graph, 0).distances[24]
+    assert alt_stats.settled_nodes < len(graph.nodes)
 
 
 def test_ch_query_matches_dijkstra_on_undirected_graph() -> None:
