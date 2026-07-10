@@ -89,10 +89,35 @@ def test_parallel_delta_markdown_summary(tmp_path: Path) -> None:
     ]
 
 
+def test_alt_markdown_summary(tmp_path: Path) -> None:
+    benchmark = load_script("benchmark_alt")
+    output = tmp_path / "alt.md"
+    rows: list[dict[str, object]] = [
+        {
+            "landmark_strategy": "avoid",
+            "source": 0,
+            "target": 3,
+            "dijkstra_seconds": 0.25,
+            "alt_seconds": 0.125,
+            "alt_heap_pops": 5,
+            "alt_settled_nodes": 3,
+        }
+    ]
+
+    benchmark.write_markdown_summary(rows, output)
+
+    assert output.read_text(encoding="utf-8").splitlines() == [
+        "| strategy | source | target | dijkstra seconds | alt seconds | heap pops | settled |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+        "| avoid | 0 | 3 | 0.250000 | 0.125000 | 5 | 3 |",
+    ]
+
+
 def test_benchmark_scripts_write_markdown_outputs(tmp_path: Path) -> None:
     delta_output = tmp_path / "delta.json"
     policies_output = tmp_path / "policies.json"
     parallel_output = tmp_path / "parallel.json"
+    alt_output = tmp_path / "alt.json"
 
     subprocess.run(
         [
@@ -142,6 +167,26 @@ def test_benchmark_scripts_write_markdown_outputs(tmp_path: Path) -> None:
         cwd=ROOT,
         check=True,
     )
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/benchmark_alt.py",
+            "--nodes",
+            "20",
+            "--edges",
+            "60",
+            "--pairs",
+            "3",
+            "--landmarks",
+            "3",
+            "--strategy",
+            "avoid",
+            "--output",
+            str(alt_output),
+        ],
+        cwd=ROOT,
+        check=True,
+    )
 
     assert delta_output.with_suffix(".csv").exists()
     assert delta_output.with_suffix(".md").exists()
@@ -149,3 +194,5 @@ def test_benchmark_scripts_write_markdown_outputs(tmp_path: Path) -> None:
     assert policies_output.with_suffix(".md").exists()
     assert parallel_output.with_suffix(".csv").exists()
     assert parallel_output.with_suffix(".md").exists()
+    assert alt_output.with_suffix(".csv").exists()
+    assert alt_output.with_suffix(".md").exists()

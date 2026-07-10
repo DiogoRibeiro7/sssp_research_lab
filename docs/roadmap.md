@@ -19,6 +19,8 @@
   Current coverage runs independent source queries through thread/process pools;
   it does not claim intra-bucket parallel relaxation.
 - Improve ALT landmark selection: random, farthest, avoid, planar-style corners.
+  Current coverage includes random, high-degree, farthest-first, avoid-style
+  pair sampling, coordinate bounding-box corners, and row-major grid corners.
 - Improve CH contraction order: edge difference, contracted neighbors, shortcut cover.
 
 ## Phase 3 — Research-frontier implementations

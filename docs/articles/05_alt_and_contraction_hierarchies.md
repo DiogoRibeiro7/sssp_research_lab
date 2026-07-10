@@ -16,5 +16,6 @@ strong hierarchy. Good landmarks and contraction orders can reduce query work
 substantially. Random dense graphs usually show less structure.
 
 The repository keeps both modules educational: ALT has reusable landmark
-indexes and query stats, while CH supports small-graph shortcut unpacking and
-several simple ordering heuristics.
+indexes, query stats, and several landmark strategies including avoid-style and
+coordinate-corner selection, while CH supports small-graph shortcut unpacking
+and several simple ordering heuristics.

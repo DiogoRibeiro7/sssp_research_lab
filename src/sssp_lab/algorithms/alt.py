@@ -5,6 +5,7 @@ from __future__ import annotations
 import heapq
 import random
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from sssp_lab.algorithms.dijkstra_binary_heap import dijkstra
@@ -34,14 +35,19 @@ class ALTQueryStats:
     seconds: float = 0.0
 
 
-def random_landmarks(graph: Graph, *, count: int, seed: int = 0) -> tuple[Node, ...]:
-    """Select landmarks uniformly at random with a deterministic seed."""
-
+def _validate_landmark_count(graph: Graph, count: int) -> list[Node]:
     if count <= 0:
         raise ValueError("count must be positive")
     nodes = sorted(graph.nodes)
     if count > len(nodes):
         raise ValueError("count must not exceed number of nodes")
+    return nodes
+
+
+def random_landmarks(graph: Graph, *, count: int, seed: int = 0) -> tuple[Node, ...]:
+    """Select landmarks uniformly at random with a deterministic seed."""
+
+    nodes = _validate_landmark_count(graph, count)
     rng = random.Random(seed)
     return tuple(sorted(rng.sample(nodes, count)))
 
@@ -49,8 +55,7 @@ def random_landmarks(graph: Graph, *, count: int, seed: int = 0) -> tuple[Node, 
 def high_degree_landmarks(graph: Graph, *, count: int) -> tuple[Node, ...]:
     """Select nodes with the highest outgoing degree."""
 
-    if count <= 0:
-        raise ValueError("count must be positive")
+    _validate_landmark_count(graph, count)
     return tuple(
         node
         for node, _ in sorted(
@@ -63,11 +68,7 @@ def high_degree_landmarks(graph: Graph, *, count: int) -> tuple[Node, ...]:
 def farthest_first_landmarks(graph: Graph, *, count: int, seed: Node | None = None) -> tuple[Node, ...]:
     """Select landmarks greedily by maximum distance from existing landmarks."""
 
-    if count <= 0:
-        raise ValueError("count must be positive")
-    nodes = sorted(graph.nodes)
-    if count > len(nodes):
-        raise ValueError("count must not exceed number of nodes")
+    nodes = _validate_landmark_count(graph, count)
     first = nodes[0] if seed is None else seed
     graph.require_node(first)
     landmarks = [first]
@@ -81,6 +82,123 @@ def farthest_first_landmarks(graph: Graph, *, count: int, seed: Node | None = No
             ),
         )
         landmarks.append(best_node)
+    return tuple(landmarks)
+
+
+def avoid_landmarks(
+    graph: Graph,
+    *,
+    count: int,
+    seed: Node | None = None,
+    sample_limit: int = 64,
+) -> tuple[Node, ...]:
+    """Select landmarks by targeting weak current ALT lower bounds.
+
+    This deterministic approximation of the ALT "avoid" idea repeatedly samples
+    source-target pairs, finds a pair where the current landmarks leave a large
+    distance gap, and adds a node on that shortest path that is far from the
+    existing landmarks.
+    """
+
+    nodes = _validate_landmark_count(graph, count)
+    if sample_limit <= 0:
+        raise ValueError("sample_limit must be positive")
+    first = nodes[0] if seed is None else seed
+    graph.require_node(first)
+    landmarks = [first]
+
+    while len(landmarks) < count:
+        index = build_alt_index(graph, landmarks)
+        pair_count = min(sample_limit, max(1, len(nodes) * (len(nodes) - 1)))
+        sampled_pairs = (
+            (nodes[i % len(nodes)], nodes[-(i % len(nodes)) - 1])
+            for i in range(pair_count)
+        )
+        best_score: tuple[float, float, int, int] | None = None
+        best_path: list[Node] = []
+        for source, target in sampled_pairs:
+            if source == target:
+                continue
+            result = dijkstra(graph, source)
+            distance = result.distances[target]
+            if distance == float("inf"):
+                continue
+            lower_bound = _lower_bound(index, source, target)
+            gap = distance - lower_bound
+            path = result.path_to(target)
+            score = (gap, distance, -source, -target)
+            if path and (best_score is None or score > best_score):
+                best_score = score
+                best_path = path
+
+        if not best_path:
+            return farthest_first_landmarks(graph, count=count, seed=first)
+
+        candidates = [node for node in best_path if node not in landmarks]
+        if not candidates:
+            candidates = [node for node in nodes if node not in landmarks]
+        distance_maps = [dijkstra(graph, landmark).distances for landmark in landmarks]
+        landmarks.append(
+            max(
+                candidates,
+                key=lambda node: (
+                    min(distance_map[node] for distance_map in distance_maps),
+                    -node,
+                ),
+            )
+        )
+    return tuple(landmarks)
+
+
+def coordinate_corner_landmarks(
+    graph: Graph,
+    coordinates: Mapping[Node, tuple[float, float]],
+    *,
+    count: int = 4,
+) -> tuple[Node, ...]:
+    """Select nodes nearest the bounding-box corners of supplied coordinates."""
+
+    nodes = _validate_landmark_count(graph, count)
+    missing = [node for node in nodes if node not in coordinates]
+    if missing:
+        raise ValueError("coordinates must include every graph node")
+    xs = [coordinates[node][0] for node in nodes]
+    ys = [coordinates[node][1] for node in nodes]
+    corners = (
+        (min(xs), min(ys)),
+        (max(xs), min(ys)),
+        (min(xs), max(ys)),
+        (max(xs), max(ys)),
+    )
+    landmarks: list[Node] = []
+    for corner_x, corner_y in corners:
+        closest = min(
+            (node for node in nodes if node not in landmarks),
+            key=lambda node: (
+                (coordinates[node][0] - corner_x) ** 2 + (coordinates[node][1] - corner_y) ** 2,
+                node,
+            ),
+            default=None,
+        )
+        if closest is not None:
+            landmarks.append(closest)
+        if len(landmarks) == count:
+            return tuple(landmarks)
+
+    while len(landmarks) < count:
+        landmarks.append(
+            max(
+                (node for node in nodes if node not in landmarks),
+                key=lambda node: (
+                    min(
+                        (coordinates[node][0] - coordinates[landmark][0]) ** 2
+                        + (coordinates[node][1] - coordinates[landmark][1]) ** 2
+                        for landmark in landmarks
+                    ),
+                    -node,
+                ),
+            )
+        )
     return tuple(landmarks)
 
 

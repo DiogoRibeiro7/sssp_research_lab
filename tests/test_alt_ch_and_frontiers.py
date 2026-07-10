@@ -3,7 +3,9 @@ from __future__ import annotations
 from sssp_lab.algorithms.alt import (
     ALTQueryStats,
     alt_query,
+    avoid_landmarks,
     build_alt_index,
+    coordinate_corner_landmarks,
     farthest_first_landmarks,
     grid_corner_landmarks,
     high_degree_landmarks,
@@ -60,11 +62,45 @@ def _grid_graph(width: int, height: int, *, directed: bool) -> Graph:
 
 def test_alt_landmark_strategies() -> None:
     graph = _grid_graph(4, 4, directed=False)
+    coordinates = {node: (float(node % 4), float(node // 4)) for node in graph.nodes}
 
     assert len(random_landmarks(graph, count=3, seed=1)) == 3
     assert high_degree_landmarks(graph, count=2)
     assert len(farthest_first_landmarks(graph, count=3)) == 3
+    assert len(avoid_landmarks(graph, count=3, seed=0, sample_limit=10)) == 3
+    assert coordinate_corner_landmarks(graph, coordinates) == (0, 3, 12, 15)
     assert grid_corner_landmarks(width=4, height=4) == (0, 3, 12, 15)
+
+
+def test_alt_landmark_strategy_validation() -> None:
+    graph = _grid_graph(2, 2, directed=False)
+
+    for selector in [
+        random_landmarks,
+        high_degree_landmarks,
+        farthest_first_landmarks,
+        avoid_landmarks,
+    ]:
+        try:
+            selector(graph, count=5)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("selector accepted too many landmarks")
+
+    try:
+        avoid_landmarks(graph, count=2, sample_limit=0)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("avoid selector accepted an empty sample")
+
+    try:
+        coordinate_corner_landmarks(graph, {0: (0.0, 0.0)}, count=2)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("coordinate selector accepted incomplete coordinates")
 
 
 def test_alt_query_stats_on_directed_and_undirected_graphs() -> None:
