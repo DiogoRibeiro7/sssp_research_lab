@@ -41,12 +41,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e . pytest maturin
-      - name: Build Rust extension wheel
-        working-directory: rust/sssp_accel
-        run: python -m maturin build --release
-      - name: Install extension into source tree
-        run: |
-          python scripts/install_built_rust_extension.py rust/sssp_accel/target/wheels/*.whl
+      - name: Build and install Rust extension
+        run: python scripts/build_rust_extension.py --install-source
       - name: Rust Python integration tests
         run: |
           python -m pytest tests/test_rust_accel.py

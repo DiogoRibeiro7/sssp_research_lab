@@ -19,11 +19,11 @@ then exposes single-source and batched Dijkstra/circular-Dial methods.
 
 ## Local Build
 
-From the extension directory:
+From the repository root:
 
 ```bash
-cd rust/sssp_accel
-maturin develop
+python -m pip install maturin
+python scripts/build_rust_extension.py --install-source
 ```
 
 Then run:
@@ -50,6 +50,13 @@ Rows with matching Python baselines include `speedup_vs_python`.
 CI builds the maturin wheel in a dedicated job and copies the compiled extension
 into `src/sssp_lab` with `scripts/install_built_rust_extension.py` before running
 the integration tests.
+
+See `docs/packaging.md` for Python-only installs, local extension builds, and
+wheel installation commands. For source-checkout benchmarking, use:
+
+```bash
+python scripts/build_rust_extension.py --install-source
+```
 
 ## Design Boundary
 

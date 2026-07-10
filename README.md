@@ -98,10 +98,11 @@ The repository includes an optional PyO3/maturin extension under
 algorithms remain the correctness reference.
 
 ```bash
-cd rust/sssp_accel
-maturin develop
+python -m pip install maturin
+python scripts/build_rust_extension.py --install-source
 python -m pytest tests/test_rust_accel.py
 python scripts/benchmark_rust_accel.py --require-rust
 ```
 
-See `docs/rust_acceleration.md` for the design boundary and wrapper API.
+See `docs/rust_acceleration.md` for the design boundary and wrapper API, and
+`docs/packaging.md` for Python-only, local-extension, and wheel install flows.
