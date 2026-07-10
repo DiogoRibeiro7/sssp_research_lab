@@ -34,6 +34,17 @@ class CHIndex:
     shortcut_lookup: dict[tuple[Node, Node], Shortcut]
 
 
+@dataclass(frozen=True, slots=True)
+class ContractionCandidate:
+    """Dynamic score for contracting one node."""
+
+    node: Node
+    shortcut_count: int
+    edge_difference: int
+    contracted_neighbors: int
+    level: int
+
+
 def _without_node(graph: Graph, blocked: Node) -> Graph:
     filtered = Graph(directed=True)
     for node in graph.nodes:
@@ -49,8 +60,53 @@ def _incoming_edges(graph: Graph, node: Node) -> list[Edge]:
     return [edge for edge in graph.iter_edges() if edge.target == node]
 
 
+def _active_incoming_edges(graph: Graph, node: Node, contracted: set[Node]) -> list[Edge]:
+    return [edge for edge in _incoming_edges(graph, node) if edge.source not in contracted]
+
+
+def _active_outgoing_edges(graph: Graph, node: Node, contracted: set[Node]) -> list[Edge]:
+    return [edge for edge in graph.neighbors(node) if edge.target not in contracted]
+
+
+def _required_shortcuts(graph: Graph, node: Node, contracted: set[Node]) -> list[Shortcut]:
+    incoming = _active_incoming_edges(graph, node, contracted)
+    outgoing = _active_outgoing_edges(graph, node, contracted)
+    witness_graph = _without_node(graph, node)
+    shortcuts: list[Shortcut] = []
+    for in_edge in incoming:
+        for out_edge in outgoing:
+            if in_edge.source == out_edge.target:
+                continue
+            shortcut_weight = in_edge.weight + out_edge.weight
+            witness = _bounded_witness_distance(
+                witness_graph,
+                in_edge.source,
+                out_edge.target,
+                shortcut_weight,
+            )
+            if shortcut_weight < witness:
+                shortcuts.append(
+                    Shortcut(
+                        source=in_edge.source,
+                        target=out_edge.target,
+                        weight=shortcut_weight,
+                        via=node,
+                    )
+                )
+    return shortcuts
+
+
+def _contracted_neighbor_count(graph: Graph, node: Node, contracted: set[Node]) -> int:
+    neighbors = {edge.source for edge in _incoming_edges(graph, node)}
+    neighbors.update(edge.target for edge in graph.neighbors(node))
+    return len(neighbors & contracted)
+
+
 def contraction_order(graph: Graph, *, heuristic: str = "degree") -> tuple[Node, ...]:
     """Return an educational contraction order for small graphs."""
+
+    if heuristic.startswith("witness_"):
+        return witness_contraction_order(graph, heuristic=heuristic.removeprefix("witness_"))
 
     incoming_counts = {node: 0 for node in graph.nodes}
     for edge in graph.iter_edges():
@@ -74,6 +130,74 @@ def contraction_order(graph: Graph, *, heuristic: str = "degree") -> tuple[Node,
         return (score, node)
 
     return tuple(sorted(graph.nodes, key=key))
+
+
+def contraction_candidate(
+    graph: Graph,
+    node: Node,
+    *,
+    contracted: set[Node] | None = None,
+    level: dict[Node, int] | None = None,
+) -> ContractionCandidate:
+    """Estimate the dynamic CH priority metrics for one candidate node."""
+
+    graph.require_node(node)
+    active_contracted = set() if contracted is None else contracted
+    active_level = {candidate: 0 for candidate in graph.nodes} if level is None else level
+    incoming = _active_incoming_edges(graph, node, active_contracted)
+    outgoing = _active_outgoing_edges(graph, node, active_contracted)
+    shortcut_count = len(_required_shortcuts(graph, node, active_contracted))
+    return ContractionCandidate(
+        node=node,
+        shortcut_count=shortcut_count,
+        edge_difference=shortcut_count - len(incoming) - len(outgoing),
+        contracted_neighbors=_contracted_neighbor_count(graph, node, active_contracted),
+        level=active_level.get(node, 0),
+    )
+
+
+def witness_contraction_order(graph: Graph, *, heuristic: str = "edge_difference") -> tuple[Node, ...]:
+    """Build a dynamic contraction order using witness-based shortcut estimates."""
+
+    graph.require_non_negative_weights()
+    work = Graph(directed=True)
+    for node in graph.nodes:
+        work.add_node(node)
+    for edge in graph.iter_edges():
+        work.add_edge(edge.source, edge.target, edge.weight)
+
+    contracted: set[Node] = set()
+    levels = {node: 0 for node in graph.nodes}
+    order: list[Node] = []
+
+    def score(candidate: ContractionCandidate) -> tuple[int, int, int, int]:
+        if heuristic == "edge_difference":
+            value = candidate.edge_difference
+        elif heuristic == "shortcut_cover":
+            value = candidate.shortcut_count
+        elif heuristic == "contracted_neighbor_count":
+            value = candidate.edge_difference + candidate.contracted_neighbors
+        elif heuristic == "level":
+            value = candidate.edge_difference + candidate.level
+        else:
+            raise ValueError(f"unknown witness contraction heuristic: {heuristic}")
+        return (value, candidate.shortcut_count, candidate.level, candidate.node)
+
+    while len(order) < len(graph.nodes):
+        remaining = sorted(graph.nodes - contracted)
+        candidates = [
+            contraction_candidate(work, node, contracted=contracted, level=levels)
+            for node in remaining
+        ]
+        selected = min(candidates, key=score)
+        shortcuts = _required_shortcuts(work, selected.node, contracted)
+        for shortcut in shortcuts:
+            work.add_edge(shortcut.source, shortcut.target, shortcut.weight)
+            levels[shortcut.source] = max(levels[shortcut.source], levels[selected.node] + 1)
+            levels[shortcut.target] = max(levels[shortcut.target], levels[selected.node] + 1)
+        contracted.add(selected.node)
+        order.append(selected.node)
+    return tuple(order)
 
 
 def _bounded_witness_distance(graph: Graph, source: Node, target: Node, bound: float) -> float:
@@ -243,7 +367,7 @@ def ch_query(index: CHIndex, source: Node, target: Node) -> float:
     index.upward.require_node(source)
     index.upward.require_node(target)
     forward, _ = _search_upward(index.upward, source)
-    backward, _ = _search_upward(index.downward, target)
+    backward, _ = _search_upward(index.downward.reversed(), target)
     return min(forward[node] + backward[node] for node in index.upward.nodes)
 
 
@@ -253,7 +377,7 @@ def ch_query_path(index: CHIndex, source: Node, target: Node) -> tuple[float, li
     index.upward.require_node(source)
     index.upward.require_node(target)
     forward, forward_predecessors = _search_upward(index.upward, source)
-    backward, backward_predecessors = _search_upward(index.downward, target)
+    backward, backward_predecessors = _search_upward(index.downward.reversed(), target)
     meeting = min(index.upward.nodes, key=lambda node: forward[node] + backward[node])
     distance = forward[meeting] + backward[meeting]
     if distance == float("inf"):

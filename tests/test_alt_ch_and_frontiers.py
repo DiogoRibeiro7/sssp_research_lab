@@ -17,7 +17,9 @@ from sssp_lab.algorithms.contraction_hierarchies import (
     build_ch_index,
     ch_query,
     ch_query_path,
+    contraction_candidate,
     contraction_order,
+    witness_contraction_order,
 )
 from sssp_lab.algorithms.delta_stepping import delta_stepping
 from sssp_lab.algorithms.dijkstra_binary_heap import dijkstra
@@ -159,6 +161,44 @@ def test_ch_order_heuristics_cover_small_graph() -> None:
     for heuristic in ["degree", "edge_difference", "contracted_neighbor_count", "shortcut_cover", "level"]:
         order = contraction_order(graph, heuristic=heuristic)
         assert set(order) == graph.nodes
+
+
+def test_ch_witness_order_heuristics_cover_small_graph() -> None:
+    graph = Graph.from_edges(
+        [(0, 1, 1), (1, 2, 1), (2, 3, 1), (0, 3, 10), (1, 3, 5)],
+        directed=False,
+    )
+
+    for heuristic in [
+        "edge_difference",
+        "contracted_neighbor_count",
+        "shortcut_cover",
+        "level",
+    ]:
+        order = witness_contraction_order(graph, heuristic=heuristic)
+        assert set(order) == graph.nodes
+
+
+def test_ch_witness_order_builds_correct_index() -> None:
+    graph = Graph.from_edges(
+        [(0, 1, 1), (1, 2, 1), (2, 3, 1), (0, 3, 10), (1, 3, 5)],
+        directed=False,
+    )
+
+    index = build_ch_index(graph, heuristic="witness_edge_difference")
+
+    assert ch_query(index, 0, 3) == dijkstra(graph, 0).distances[3]
+    assert set(index.rank) == graph.nodes
+
+
+def test_ch_contraction_candidate_reports_shortcut_metrics() -> None:
+    graph = Graph.from_edges([(0, 1, 1), (1, 2, 1)], directed=True)
+
+    candidate = contraction_candidate(graph, 1)
+
+    assert candidate.node == 1
+    assert candidate.shortcut_count == 1
+    assert candidate.edge_difference == -1
 
 
 def test_bounded_multi_source_sssp_exposes_frontier() -> None:

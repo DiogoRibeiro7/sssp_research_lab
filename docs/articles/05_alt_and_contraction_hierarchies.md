@@ -17,5 +17,5 @@ substantially. Random dense graphs usually show less structure.
 
 The repository keeps both modules educational: ALT has reusable landmark
 indexes, query stats, and several landmark strategies including avoid-style and
-coordinate-corner selection, while CH supports small-graph shortcut unpacking
-and several simple ordering heuristics.
+coordinate-corner selection, while CH supports small-graph shortcut unpacking,
+static ordering heuristics, and witness-aware dynamic ordering variants.

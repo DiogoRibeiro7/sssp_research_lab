@@ -22,6 +22,8 @@
   Current coverage includes random, high-degree, farthest-first, avoid-style
   pair sampling, coordinate bounding-box corners, and row-major grid corners.
 - Improve CH contraction order: edge difference, contracted neighbors, shortcut cover.
+  Current coverage includes static scores and witness-aware dynamic variants for
+  edge-difference, contracted-neighbor, shortcut-cover, and level heuristics.
 
 ## Phase 3 — Research-frontier implementations
 
