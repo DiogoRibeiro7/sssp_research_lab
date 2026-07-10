@@ -120,3 +120,18 @@ def test_integer_algorithms_reject_non_integer_weights(runner: object) -> None:
 
     with pytest.raises(ValueError):
         runner(graph, 0)  # type: ignore[operator]
+
+
+@pytest.mark.parametrize("delta", [0.5, 1.0, 2.0, 5.0])
+def test_delta_stepping_matches_dijkstra_over_delta_values(delta: float) -> None:
+    graph = Graph.from_edges(
+        [(0, 1, 0.5), (0, 2, 4.0), (1, 2, 1.5), (2, 3, 2.0), (1, 3, 6.0)],
+        directed=True,
+    )
+    stats = OperationStats()
+
+    result = delta_stepping(graph, 0, delta=delta, stats=stats)
+
+    assert_same_distances(result.distances, dijkstra(graph, 0).distances)
+    assert stats.bucket_phases > 0
+    assert stats.light_relaxations + stats.heavy_relaxations == stats.relaxations
