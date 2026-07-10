@@ -19,22 +19,17 @@ if str(SRC) not in sys.path:
 from sssp_lab.algorithms.dial import dial_circular_sssp  # noqa: E402
 from sssp_lab.algorithms.dijkstra_binary_heap import dijkstra  # noqa: E402
 from sssp_lab.algorithms.rust_accel import (  # noqa: E402
-    CSRGraph,
+    RustSsspWorkspace,
     dial_circular_rust,
-    dial_circular_rust_csr,
-    dial_circular_rust_csr_many,
     dijkstra_rust,
-    dijkstra_rust_csr,
-    dijkstra_rust_csr_many,
-    graph_to_csr,
     rust_backend_available,
 )
 from sssp_lab.graph import Graph, PathResult  # noqa: E402
 from sssp_lab.utils import assert_same_distances, make_random_graph  # noqa: E402
 
 Runner = Callable[[Graph, int], PathResult]
-CSRRunner = Callable[[CSRGraph, int], PathResult]
-CSRBatchRunner = Callable[[CSRGraph, tuple[int, ...]], list[PathResult]]
+PreparedRunner = Callable[[int], PathResult]
+PreparedBatchRunner = Callable[[tuple[int, ...]], list[PathResult]]
 
 
 def python_baseline_name(algorithm: str) -> str | None:
@@ -128,19 +123,18 @@ def timed_many(
     }
 
 
-def timed_csr_many(
+def timed_prepared_many(
     name: str,
     backend: str,
-    runner: CSRRunner,
-    csr: CSRGraph,
+    runner: PreparedRunner,
     sources: tuple[int, ...],
 ) -> dict[str, object]:
-    """Run one implementation against a prebuilt CSR graph for several sources."""
+    """Run one prepared implementation for several sources."""
 
     results: list[PathResult] = []
     start = time.perf_counter()
     for source in sources:
-        results.append(runner(csr, source))
+        results.append(runner(source))
     seconds = time.perf_counter() - start
     return {
         "algorithm": name,
@@ -157,17 +151,16 @@ def timed_csr_many(
     }
 
 
-def timed_csr_batch(
+def timed_prepared_batch(
     name: str,
     backend: str,
-    runner: CSRBatchRunner,
-    csr: CSRGraph,
+    runner: PreparedBatchRunner,
     sources: tuple[int, ...],
 ) -> dict[str, object]:
-    """Run one batched implementation against a prebuilt CSR graph."""
+    """Run one prepared batched implementation."""
 
     start = time.perf_counter()
-    results = runner(csr, sources)
+    results = runner(sources)
     seconds = time.perf_counter() - start
     return {
         "algorithm": name,
@@ -222,7 +215,7 @@ def main() -> None:
 
     if rust_backend_available():
         conversion_start = time.perf_counter()
-        csr = graph_to_csr(graph)
+        workspace = RustSsspWorkspace.from_graph(graph)
         conversion_seconds = time.perf_counter() - conversion_start
         rows.append(
             {
@@ -231,7 +224,7 @@ def main() -> None:
                 "seconds": conversion_seconds,
                 "source_count": len(sources),
                 "seconds_per_source": conversion_seconds / len(sources),
-                "reachable": len(csr.nodes),
+                "reachable": len(workspace.csr.nodes),
                 "result": reference_results,
             }
         )
@@ -239,20 +232,28 @@ def main() -> None:
             [
                 timed_many("dijkstra", "rust", dijkstra_rust, graph, sources),
                 timed_many("dial_circular", "rust", dial_circular_rust, graph, sources),
-                timed_csr_many("dijkstra_csr_reused", "rust", dijkstra_rust_csr, csr, sources),
-                timed_csr_many(
-                    "dial_circular_csr_reused",
+                timed_prepared_many(
+                    "dijkstra_csr_reused",
                     "rust",
-                    dial_circular_rust_csr,
-                    csr,
+                    workspace.dijkstra,
                     sources,
                 ),
-                timed_csr_batch("dijkstra_csr_batch", "rust", dijkstra_rust_csr_many, csr, sources),
-                timed_csr_batch(
+                timed_prepared_many(
+                    "dial_circular_csr_reused",
+                    "rust",
+                    workspace.dial_circular,
+                    sources,
+                ),
+                timed_prepared_batch(
+                    "dijkstra_csr_batch",
+                    "rust",
+                    workspace.dijkstra_many,
+                    sources,
+                ),
+                timed_prepared_batch(
                     "dial_circular_csr_batch",
                     "rust",
-                    dial_circular_rust_csr_many,
-                    csr,
+                    workspace.dial_circular_many,
                     sources,
                 ),
             ]

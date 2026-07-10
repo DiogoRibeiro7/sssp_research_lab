@@ -6,6 +6,7 @@ from sssp_lab.algorithms.dial import dial_circular_sssp
 from sssp_lab.algorithms.dijkstra_binary_heap import dijkstra
 from sssp_lab.algorithms.rust_accel import (
     RustBackendUnavailable,
+    RustSsspWorkspace,
     dial_circular_rust,
     dial_circular_rust_csr,
     dial_circular_rust_csr_many,
@@ -40,6 +41,28 @@ def test_csr_rejects_missing_source() -> None:
         csr.source_index(99)
 
 
+def test_workspace_prepares_reusable_csr_arrays() -> None:
+    graph = Graph.from_edges([(10, 20, 2), (10, 30, 5), (20, 30, 1)], directed=True)
+
+    workspace = RustSsspWorkspace.from_graph(graph)
+
+    assert workspace.csr.nodes == (10, 20, 30)
+    assert workspace.csr.offsets == [0, 2, 3, 3]
+    assert workspace.csr.targets == [1, 2, 2]
+    assert workspace.csr.weights == [2.0, 5.0, 1.0]
+    assert workspace.integer_weights == [2, 5, 1]
+
+
+def test_workspace_keeps_float_graphs_for_dijkstra_only() -> None:
+    graph = Graph.from_edges([(0, 1, 1.5)], directed=True)
+
+    workspace = RustSsspWorkspace.from_graph(graph)
+
+    assert workspace.integer_weights is None
+    with pytest.raises(ValueError):
+        workspace.dial_circular(0)
+
+
 def test_rust_backend_unavailable_contract() -> None:
     if rust_backend_available():
         pytest.skip("Rust backend is installed")
@@ -48,6 +71,8 @@ def test_rust_backend_unavailable_contract() -> None:
 
     with pytest.raises(RustBackendUnavailable):
         dijkstra_rust(graph, 0)
+    with pytest.raises(RustBackendUnavailable):
+        RustSsspWorkspace.from_graph(graph).dijkstra(0)
 
 
 @pytest.mark.skipif(not rust_backend_available(), reason="Rust backend is not installed")
@@ -92,6 +117,23 @@ def test_rust_dijkstra_accepts_batched_sources() -> None:
 
 
 @pytest.mark.skipif(not rust_backend_available(), reason="Rust backend is not installed")
+def test_workspace_runs_dijkstra_sources() -> None:
+    graph = Graph.from_edges(
+        [(10, 20, 2), (10, 30, 5), (20, 30, 1), (30, 40, 3)],
+        directed=True,
+    )
+    workspace = RustSsspWorkspace.from_graph(graph)
+
+    result = workspace.dijkstra(10)
+    results = workspace.dijkstra_many((10, 20))
+
+    assert_same_distances(result.distances, dijkstra(graph, 10).distances)
+    assert len(results) == 2
+    assert_same_distances(results[0].distances, dijkstra(graph, 10).distances)
+    assert_same_distances(results[1].distances, dijkstra(graph, 20).distances)
+
+
+@pytest.mark.skipif(not rust_backend_available(), reason="Rust backend is not installed")
 def test_rust_circular_dial_matches_python_reference() -> None:
     graph = Graph.from_edges(
         [(0, 1, 2), (0, 2, 5), (1, 2, 1), (2, 3, 3)],
@@ -126,6 +168,23 @@ def test_rust_circular_dial_accepts_batched_sources() -> None:
 
     results = dial_circular_rust_csr_many(csr, (0, 1))
 
+    assert len(results) == 2
+    assert_same_distances(results[0].distances, dial_circular_sssp(graph, 0).distances)
+    assert_same_distances(results[1].distances, dial_circular_sssp(graph, 1).distances)
+
+
+@pytest.mark.skipif(not rust_backend_available(), reason="Rust backend is not installed")
+def test_workspace_runs_circular_dial_sources() -> None:
+    graph = Graph.from_edges(
+        [(0, 1, 2), (0, 2, 5), (1, 2, 1), (2, 3, 3)],
+        directed=True,
+    )
+    workspace = RustSsspWorkspace.from_graph(graph)
+
+    result = workspace.dial_circular(0)
+    results = workspace.dial_circular_many((0, 1))
+
+    assert_same_distances(result.distances, dial_circular_sssp(graph, 0).distances)
     assert len(results) == 2
     assert_same_distances(results[0].distances, dial_circular_sssp(graph, 0).distances)
     assert_same_distances(results[1].distances, dial_circular_sssp(graph, 1).distances)

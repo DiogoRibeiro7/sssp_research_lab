@@ -13,6 +13,9 @@ The optional PyO3 extension exposes:
 
 Python wrappers in `sssp_lab.algorithms.rust_accel` convert the repository's
 `Graph` object into CSR arrays and map distances/predecessors back to node ids.
+For repeated queries, prefer `RustSsspWorkspace.from_graph(graph)`: it validates
+non-negative weights, builds CSR once, caches integer weights when possible, and
+then exposes single-source and batched Dijkstra/circular-Dial methods.
 
 ## Local Build
 
@@ -53,3 +56,16 @@ the integration tests.
 The Rust backend is deliberately optional. It should not replace Python tests or
 the clear reference implementations. Any new Rust kernel must be validated
 against the Python algorithm on the same graph inputs.
+
+The API boundary is:
+
+- Python owns `Graph` validation, CSR construction, arbitrary node-id mapping,
+  and `PathResult` materialization.
+- Rust owns kernels over already-prepared CSR arrays, including loops over
+  batched source nodes when call overhead matters.
+- End-to-end convenience wrappers such as `dijkstra_rust(graph, source)` remain
+  available, but benchmark and production-style repeated-query code should use
+  `RustSsspWorkspace` to avoid rebuilding graph data for every source.
+
+This keeps the correctness surface inspectable in Python while moving the
+highest-payoff inner loops and repeated-source execution into Rust.

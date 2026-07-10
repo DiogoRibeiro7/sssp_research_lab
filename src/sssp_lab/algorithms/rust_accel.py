@@ -37,6 +37,80 @@ class CSRGraph:
             raise ValueError(f"source node {source!r} is not present in graph") from exc
 
 
+@dataclass(frozen=True, slots=True)
+class RustSsspWorkspace:
+    """Prepared CSR graph for repeated optional Rust SSSP queries."""
+
+    csr: CSRGraph
+    integer_weights: list[int] | None
+
+    @classmethod
+    def from_graph(cls, graph: Graph) -> RustSsspWorkspace:
+        """Validate and convert a graph once for repeated Rust queries."""
+
+        graph.require_non_negative_weights()
+        csr = graph_to_csr(graph)
+        return cls(csr=csr, integer_weights=_integer_weights_or_none(csr))
+
+    def dijkstra(self, source: Node) -> PathResult:
+        """Compute one Dijkstra query through the prepared Rust CSR graph."""
+
+        return dijkstra_rust_csr(self.csr, source)
+
+    def dijkstra_many(self, sources: tuple[Node, ...]) -> list[PathResult]:
+        """Compute several Dijkstra queries in one Rust extension call."""
+
+        return dijkstra_rust_csr_many(self.csr, sources)
+
+    def dial_circular(self, source: Node) -> PathResult:
+        """Compute one circular-Dial query through the prepared Rust CSR graph."""
+
+        integer_weights = self._require_integer_weights()
+        backend = _backend()
+        source_index = self.csr.source_index(source)
+        raw_distances, raw_predecessors = backend.dial_circular_csr(
+            len(self.csr.nodes),
+            self.csr.offsets,
+            self.csr.targets,
+            integer_weights,
+            source_index,
+        )
+        return _path_result_from_raw(
+            nodes=self.csr.nodes,
+            source=source,
+            raw_distances=raw_distances,
+            raw_predecessors=raw_predecessors,
+        )
+
+    def dial_circular_many(self, sources: tuple[Node, ...]) -> list[PathResult]:
+        """Compute several circular-Dial queries in one Rust extension call."""
+
+        integer_weights = self._require_integer_weights()
+        backend = _backend()
+        source_indices = [self.csr.source_index(source) for source in sources]
+        raw_results = backend.dial_circular_csr_many(
+            len(self.csr.nodes),
+            self.csr.offsets,
+            self.csr.targets,
+            integer_weights,
+            source_indices,
+        )
+        return [
+            _path_result_from_raw(
+                nodes=self.csr.nodes,
+                source=source,
+                raw_distances=raw_distances,
+                raw_predecessors=raw_predecessors,
+            )
+            for source, (raw_distances, raw_predecessors) in zip(sources, raw_results, strict=True)
+        ]
+
+    def _require_integer_weights(self) -> list[int]:
+        if self.integer_weights is None:
+            raise ValueError("circular-Dial Rust kernel requires integer-valued weights")
+        return self.integer_weights
+
+
 def rust_backend_available() -> bool:
     """Return whether the optional Rust extension is importable."""
 
@@ -73,6 +147,20 @@ def graph_to_csr(graph: Graph) -> CSRGraph:
     )
 
 
+def _integer_weights_or_none(csr: CSRGraph) -> list[int] | None:
+    integer_weights = [int(weight) for weight in csr.weights]
+    if any(integer_weight != weight for integer_weight, weight in zip(integer_weights, csr.weights, strict=True)):
+        return None
+    return integer_weights
+
+
+def _integer_weights(csr: CSRGraph) -> list[int]:
+    integer_weights = _integer_weights_or_none(csr)
+    if integer_weights is None:
+        raise ValueError("circular-Dial Rust kernel requires integer-valued weights")
+    return integer_weights
+
+
 def _predecessor_map(nodes: tuple[Node, ...], raw_predecessors: list[int | None]) -> dict[Node, Node | None]:
     return {
         node: None if predecessor is None else nodes[predecessor]
@@ -101,10 +189,8 @@ def _path_result_from_raw(
 def dijkstra_rust(graph: Graph, source: Node) -> PathResult:
     """Compute non-negative SSSP through the optional Rust Dijkstra kernel."""
 
-    graph.require_non_negative_weights()
     graph.require_node(source)
-    csr = graph_to_csr(graph)
-    return dijkstra_rust_csr(csr, source)
+    return RustSsspWorkspace.from_graph(graph).dijkstra(source)
 
 
 def dijkstra_rust_csr(csr: CSRGraph, source: Node) -> PathResult:
@@ -153,11 +239,9 @@ def dijkstra_rust_csr_many(csr: CSRGraph, sources: tuple[Node, ...]) -> list[Pat
 def dial_circular_rust(graph: Graph, source: Node) -> PathResult:
     """Compute integer SSSP through the optional Rust circular-Dial kernel."""
 
-    graph.require_non_negative_weights()
     graph.require_integer_weights()
     graph.require_node(source)
-    csr = graph_to_csr(graph)
-    return dial_circular_rust_csr(csr, source)
+    return RustSsspWorkspace.from_graph(graph).dial_circular(source)
 
 
 def dial_circular_rust_csr(csr: CSRGraph, source: Node) -> PathResult:
@@ -165,12 +249,11 @@ def dial_circular_rust_csr(csr: CSRGraph, source: Node) -> PathResult:
 
     backend = _backend()
     source_index = csr.source_index(source)
-    integer_weights = [int(weight) for weight in csr.weights]
     raw_distances, raw_predecessors = backend.dial_circular_csr(
         len(csr.nodes),
         csr.offsets,
         csr.targets,
-        integer_weights,
+        _integer_weights(csr),
         source_index,
     )
     return _path_result_from_raw(
@@ -186,12 +269,11 @@ def dial_circular_rust_csr_many(csr: CSRGraph, sources: tuple[Node, ...]) -> lis
 
     backend = _backend()
     source_indices = [csr.source_index(source) for source in sources]
-    integer_weights = [int(weight) for weight in csr.weights]
     raw_results = backend.dial_circular_csr_many(
         len(csr.nodes),
         csr.offsets,
         csr.targets,
-        integer_weights,
+        _integer_weights(csr),
         source_indices,
     )
     return [
@@ -208,6 +290,7 @@ def dial_circular_rust_csr_many(csr: CSRGraph, sources: tuple[Node, ...]) -> lis
 __all__ = [
     "CSRGraph",
     "RustBackendUnavailable",
+    "RustSsspWorkspace",
     "dial_circular_rust",
     "dial_circular_rust_csr",
     "dial_circular_rust_csr_many",
