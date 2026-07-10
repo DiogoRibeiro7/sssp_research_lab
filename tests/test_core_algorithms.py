@@ -17,6 +17,7 @@ from sssp_lab.algorithms.stepping_variants import (
     percentile_weight_delta,
     policy_delta_stepping,
     stepping_engine,
+    trimmed_mean_weight_delta,
 )
 from sssp_lab.graph import Graph
 from sssp_lab.utils import (
@@ -230,6 +231,39 @@ def test_stepping_policies_match_dijkstra(policy: object) -> None:
     )
 
     result = policy_delta_stepping(graph, 0, delta_policy=policy)  # type: ignore[arg-type]
+
+    assert_same_distances(result.distances, dijkstra(graph, 0).distances)
+
+
+def test_trimmed_mean_delta_reduces_outlier_pressure() -> None:
+    graph = Graph.from_edges(
+        [
+            (0, 1, 1),
+            (1, 2, 2),
+            (2, 3, 3),
+            (3, 4, 4),
+            (4, 5, 1000),
+        ],
+        directed=True,
+    )
+    policy = trimmed_mean_weight_delta(0.2)
+
+    assert policy(graph) == 3
+    with pytest.raises(ValueError):
+        trimmed_mean_weight_delta(0.5)
+
+
+def test_trimmed_mean_policy_matches_dijkstra() -> None:
+    graph = make_random_graph(
+        nodes=20,
+        edges=80,
+        directed=True,
+        min_weight=1,
+        max_weight=1000,
+        seed=66,
+    )
+
+    result = policy_delta_stepping(graph, 0, delta_policy=trimmed_mean_weight_delta(0.10))
 
     assert_same_distances(result.distances, dijkstra(graph, 0).distances)
 

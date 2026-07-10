@@ -47,6 +47,24 @@ def mean_weight_delta(graph: Graph) -> float:
     return max(sum(weights) / len(weights), 1e-12)
 
 
+def trimmed_mean_weight_delta(trim_fraction: float) -> DeltaPolicy:
+    """Create a Δ policy from a trimmed mean of non-negative edge weights."""
+
+    if not 0 <= trim_fraction < 0.5:
+        raise ValueError("trim_fraction must be in [0, 0.5)")
+
+    def policy(graph: Graph) -> float:
+        weights = sorted(edge.weight for edge in graph.iter_edges() if edge.weight >= 0)
+        if not weights:
+            return 1.0
+        trim_count = int(len(weights) * trim_fraction)
+        if trim_count:
+            weights = weights[trim_count:-trim_count]
+        return max(sum(weights) / len(weights), 1e-12)
+
+    return policy
+
+
 def percentile_weight_delta(percentile: float) -> DeltaPolicy:
     """Create a Δ policy from a percentile of non-negative edge weights."""
 

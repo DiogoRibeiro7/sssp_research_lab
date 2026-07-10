@@ -25,6 +25,7 @@ from sssp_lab.algorithms.stepping_variants import (  # noqa: E402
     median_weight_delta,
     percentile_weight_delta,
     run_stepping_policy,
+    trimmed_mean_weight_delta,
 )
 from sssp_lab.graph import Graph  # noqa: E402
 from sssp_lab.utils import assert_same_distances, make_random_graph  # noqa: E402
@@ -96,6 +97,7 @@ def main() -> None:
     policies: dict[str, DeltaPolicy] = {
         "median": median_weight_delta,
         "mean": mean_weight_delta,
+        "trimmed_mean_10": trimmed_mean_weight_delta(0.10),
         "p90": percentile_weight_delta(90),
         "degree_adjusted": degree_adjusted_delta,
         "adaptive": adaptive_bucket_delta,

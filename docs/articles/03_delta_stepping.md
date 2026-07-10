@@ -12,6 +12,8 @@ The choice of `Delta` matters:
 - Very small values behave more like strict ordering.
 - Very large values can create crowded buckets and extra reprocessing.
 - Graph structure and edge-weight distribution influence the best choice.
+- A trimmed-mean policy is useful when a few extreme weights would pull the
+  arithmetic mean away from the typical light-edge scale.
 
 The repository includes a sweep script:
 
@@ -19,8 +21,8 @@ The repository includes a sweep script:
 python scripts/benchmark_delta_sweep.py --deltas 1,2,5,10
 ```
 
-It exports JSON and CSV rows with runtime, bucket phases, light relaxations,
-heavy relaxations, reinserts, and maximum bucket size.
+It exports JSON, CSV, and markdown rows with runtime, bucket phases, light
+relaxations, heavy relaxations, reinserts, and maximum bucket size.
 
 The implementation is sequential and correctness-first. Python can illustrate
 the algorithm's light/heavy split and batching behavior, but interpreter

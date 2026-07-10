@@ -13,7 +13,8 @@
 
 ## Phase 2 — Algorithm engineering
 
-- Improve Δ selection policies.
+- Improve Δ selection policies. Current policies include median, mean,
+  trimmed-mean, percentile, degree-adjusted, and adaptive bucket heuristics.
 - Add parallel Δ-stepping using thread/process pools for educational benchmarks.
 - Improve ALT landmark selection: random, farthest, avoid, planar-style corners.
 - Improve CH contraction order: edge difference, contracted neighbors, shortcut cover.
