@@ -39,6 +39,8 @@ rows so benchmark automation can run before the optional wheel is installed.
 When the Rust backend is installed, the output includes both end-to-end wrapper
 rows and `*_csr_reused` rows that reuse one prebuilt CSR graph. This separates
 conversion overhead from kernel runtime for repeated-query experiments.
+Use `--sources N` to run several deterministic source nodes and report both
+total runtime and `seconds_per_source`.
 
 CI builds the maturin wheel in a dedicated job and copies the compiled extension
 into `src/sssp_lab` with `scripts/install_built_rust_extension.py` before running

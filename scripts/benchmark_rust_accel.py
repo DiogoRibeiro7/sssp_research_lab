@@ -34,39 +34,72 @@ Runner = Callable[[Graph, int], PathResult]
 CSRRunner = Callable[[CSRGraph, int], PathResult]
 
 
-def timed(name: str, backend: str, runner: Runner, graph: Graph, source: int) -> dict[str, object]:
-    """Run one implementation and return timing metadata."""
+def select_sources(graph: Graph, count: int) -> tuple[int, ...]:
+    """Select deterministic source nodes for repeated-query benchmarks."""
 
+    if count <= 0:
+        raise ValueError("sources must be positive")
+    nodes = tuple(sorted(graph.nodes))
+    if count > len(nodes):
+        raise ValueError("sources must not exceed number of graph nodes")
+    return nodes[:count]
+
+
+def timed_many(
+    name: str,
+    backend: str,
+    runner: Runner,
+    graph: Graph,
+    sources: tuple[int, ...],
+) -> dict[str, object]:
+    """Run one implementation for several sources and return timing metadata."""
+
+    results: list[PathResult] = []
     start = time.perf_counter()
-    result = runner(graph, source)
+    for source in sources:
+        results.append(runner(graph, source))
     seconds = time.perf_counter() - start
     return {
         "algorithm": name,
         "backend": backend,
         "seconds": seconds,
-        "reachable": sum(distance < float("inf") for distance in result.distances.values()),
-        "result": result,
+        "source_count": len(sources),
+        "seconds_per_source": seconds / len(sources),
+        "reachable": sum(
+            distance < float("inf")
+            for result in results
+            for distance in result.distances.values()
+        ),
+        "result": results,
     }
 
 
-def timed_csr(
+def timed_csr_many(
     name: str,
     backend: str,
     runner: CSRRunner,
     csr: CSRGraph,
-    source: int,
+    sources: tuple[int, ...],
 ) -> dict[str, object]:
-    """Run one implementation against a prebuilt CSR graph."""
+    """Run one implementation against a prebuilt CSR graph for several sources."""
 
+    results: list[PathResult] = []
     start = time.perf_counter()
-    result = runner(csr, source)
+    for source in sources:
+        results.append(runner(csr, source))
     seconds = time.perf_counter() - start
     return {
         "algorithm": name,
         "backend": backend,
         "seconds": seconds,
-        "reachable": sum(distance < float("inf") for distance in result.distances.values()),
-        "result": result,
+        "source_count": len(sources),
+        "seconds_per_source": seconds / len(sources),
+        "reachable": sum(
+            distance < float("inf")
+            for result in results
+            for distance in result.distances.values()
+        ),
+        "result": results,
     }
 
 
@@ -77,6 +110,7 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--min-weight", type=int, default=1)
     parser.add_argument("--max-weight", type=int, default=50)
+    parser.add_argument("--sources", type=int, default=1)
     parser.add_argument("--output", type=Path, default=Path("benchmarks/rust_accel.json"))
     parser.add_argument(
         "--require-rust",
@@ -93,13 +127,16 @@ def main() -> None:
         max_weight=args.max_weight,
         seed=args.seed,
     )
+    sources = select_sources(graph, args.sources)
 
     rows: list[dict[str, object]] = [
-        timed("dijkstra", "python", dijkstra, graph, 0),
-        timed("dial_circular", "python", dial_circular_sssp, graph, 0),
+        timed_many("dijkstra", "python", dijkstra, graph, sources),
+        timed_many("dial_circular", "python", dial_circular_sssp, graph, sources),
     ]
-    reference = rows[0]["result"]
-    if not isinstance(reference, PathResult):
+    reference_results = rows[0]["result"]
+    if not isinstance(reference_results, list) or not all(
+        isinstance(result, PathResult) for result in reference_results
+    ):
         raise TypeError("runner returned unexpected result type")
 
     if rust_backend_available():
@@ -111,16 +148,24 @@ def main() -> None:
                 "algorithm": "csr_conversion",
                 "backend": "python",
                 "seconds": conversion_seconds,
+                "source_count": len(sources),
+                "seconds_per_source": conversion_seconds / len(sources),
                 "reachable": len(csr.nodes),
-                "result": reference,
+                "result": reference_results,
             }
         )
         rows.extend(
             [
-                timed("dijkstra", "rust", dijkstra_rust, graph, 0),
-                timed("dial_circular", "rust", dial_circular_rust, graph, 0),
-                timed_csr("dijkstra_csr_reused", "rust", dijkstra_rust_csr, csr, 0),
-                timed_csr("dial_circular_csr_reused", "rust", dial_circular_rust_csr, csr, 0),
+                timed_many("dijkstra", "rust", dijkstra_rust, graph, sources),
+                timed_many("dial_circular", "rust", dial_circular_rust, graph, sources),
+                timed_csr_many("dijkstra_csr_reused", "rust", dijkstra_rust_csr, csr, sources),
+                timed_csr_many(
+                    "dial_circular_csr_reused",
+                    "rust",
+                    dial_circular_rust_csr,
+                    csr,
+                    sources,
+                ),
             ]
         )
     elif args.require_rust:
@@ -128,10 +173,15 @@ def main() -> None:
 
     serializable_rows: list[dict[str, object]] = []
     for row in rows:
-        result = row.pop("result")
-        if not isinstance(result, PathResult):
+        results = row.pop("result")
+        if not isinstance(results, list) or not all(
+            isinstance(result, PathResult) for result in results
+        ):
             raise TypeError("runner returned unexpected result type")
-        assert_same_distances(result.distances, reference.distances)
+        if len(results) != len(reference_results):
+            raise AssertionError("runner returned an unexpected number of results")
+        for result, reference in zip(results, reference_results, strict=True):
+            assert_same_distances(result.distances, reference.distances)
         serializable_rows.append(row)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
