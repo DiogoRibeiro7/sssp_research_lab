@@ -12,7 +12,7 @@ from sssp_lab.algorithms.alt import (
     random_landmarks,
 )
 from sssp_lab.algorithms.bellman_ford import NegativeCycleError
-from sssp_lab.algorithms.bmssp import bounded_multi_source_sssp
+from sssp_lab.algorithms.bmssp import bounded_multi_source_sssp, recursive_bmssp
 from sssp_lab.algorithms.contraction_hierarchies import (
     build_ch_index,
     ch_query,
@@ -251,6 +251,64 @@ def test_bounded_multi_source_layered_and_close_labels() -> None:
     result = bounded_multi_source_sssp(graph, {0}, bound=float("inf"), debug=True)
 
     assert_same_distances(result.distances, dijkstra(graph, 0).distances)
+
+
+def test_recursive_bmssp_matches_bounded_primitive() -> None:
+    graph = Graph.from_edges(
+        [
+            (0, 1, 1),
+            (1, 2, 1),
+            (2, 3, 1),
+            (0, 4, 2),
+            (4, 3, 2),
+            (3, 5, 1),
+        ],
+        directed=True,
+    )
+
+    recursive = recursive_bmssp(graph, {0}, bound=4, depth=3, debug=True)
+    bounded = bounded_multi_source_sssp(graph, {0}, bound=4, debug=True)
+
+    assert_same_distances(recursive.distances, bounded.distances)
+    assert recursive.settled == bounded.settled
+    assert recursive.frontier == bounded.frontier
+    assert len(recursive.levels) > 1
+
+
+def test_recursive_bmssp_respects_absolute_source_offsets() -> None:
+    graph = Graph.from_edges([(0, 1, 2), (1, 2, 2), (0, 2, 10)], directed=True)
+
+    result = recursive_bmssp(
+        graph,
+        {1},
+        bound=5,
+        depth=2,
+        source_distances={1: 1},
+        debug=True,
+    )
+
+    assert result.distances[1] == 1
+    assert result.distances[2] == 3
+    assert 2 in result.settled
+
+
+def test_recursive_bmssp_validates_options() -> None:
+    graph = Graph.from_edges([(0, 1, 1)], directed=True)
+
+    for kwargs in [{"depth": -1}, {"split_factor": 1}]:
+        try:
+            recursive_bmssp(graph, {0}, bound=2, **kwargs)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid recursive BMSSP option was accepted")
+
+    try:
+        recursive_bmssp(graph, {0}, bound=0)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("invalid recursive BMSSP bound was accepted")
 
 
 def test_frontier_partition_matches_dijkstra() -> None:

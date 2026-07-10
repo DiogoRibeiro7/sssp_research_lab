@@ -1,9 +1,9 @@
 # BMSSP Implementation Notes
 
-The current code implements a bounded multi-source shortest-path subproblem,
-not the full recursive BMSSP algorithm from Duan et al. It is useful as a
-correctness-tested building block while the full data structures and recursion
-are developed.
+The current code implements a bounded multi-source shortest-path subproblem and
+a recursive finite-bound scaffold inspired by BMSSP. It is useful as a
+correctness-tested building block while the full paper data structures are
+developed.
 
 ## Algorithm Blocks
 
@@ -32,6 +32,24 @@ def bounded_multi_source_sssp(
     return settled nodes below bound and frontier nodes at or above bound
 ```
 
+Typed Python sketch of the recursive scaffold:
+
+```python
+def recursive_bmssp(graph, sources, *, bound, depth, split_factor):
+    if depth == 0 or bound is infinite:
+        return bounded_multi_source_sssp(graph, sources, bound=bound)
+    midpoint = min_source_label + (bound - min_source_label) / split_factor
+    lower = recursive_bmssp(graph, sources, bound=midpoint, depth=depth - 1)
+    upper = recursive_bmssp(
+        graph,
+        lower.frontier,
+        source_distances=lower.frontier_labels,
+        bound=bound,
+        depth=depth - 1,
+    )
+    return merged lower/upper labels, settled sets, and final frontier
+```
+
 ## Invariants
 
 - Settled labels are strictly below the absolute bound.
@@ -39,6 +57,8 @@ def bounded_multi_source_sssp(
 - Settled and frontier sets are disjoint.
 - All edge weights must be non-negative.
 - Source offsets are absolute distances when supplied by a caller.
+- Recursive leaf subproblems record their source set, bound, settled set, and
+  frontier for inspection.
 
 These invariants can be checked with `debug=True`.
 
@@ -49,10 +69,11 @@ Implemented:
 - Bounded multi-source exploration with absolute source labels.
 - Frontier exposure for labels that reach or exceed the bound.
 - Runtime counters and optional invariant checks.
+- Recursive finite-bound splitting that composes bounded subproblems and carries
+  frontier labels forward as absolute source offsets.
 
 Not implemented:
 
-- Recursive BMSSP decomposition.
 - Pivot selection and paper-specific frontier partitioning.
 - The proof-level data structures and asymptotic guarantees.
 - Stopping criteria from the full recursive algorithm.

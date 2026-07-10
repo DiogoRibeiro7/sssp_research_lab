@@ -9,8 +9,9 @@ several sources and explores only labels below a bound. Labels at or beyond the
 bound become the frontier for later work.
 
 The repository currently implements that bounded subproblem, including source
-offsets, frontier exposure, counters, and debug invariant checks. It does not
-implement the full recursive BMSSP algorithm from the paper.
+offsets, frontier exposure, counters, debug invariant checks, and a finite-bound
+recursive scaffold that composes bounded subproblems through frontier labels. It
+does not implement the proof-level BMSSP data structures from the paper.
 
 That distinction matters. The Python code is useful for testing invariants and
 for comparing frontier behavior against Dijkstra, but it still uses heap-based
