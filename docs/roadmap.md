@@ -16,6 +16,8 @@
 - Improve Δ selection policies. Current policies include median, mean,
   trimmed-mean, percentile, degree-adjusted, and adaptive bucket heuristics.
 - Add parallel Δ-stepping using thread/process pools for educational benchmarks.
+  Current coverage runs independent source queries through thread/process pools;
+  it does not claim intra-bucket parallel relaxation.
 - Improve ALT landmark selection: random, farthest, avoid, planar-style corners.
 - Improve CH contraction order: edge difference, contracted neighbors, shortcut cover.
 

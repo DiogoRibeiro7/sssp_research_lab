@@ -8,6 +8,9 @@ validation and teaching.
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterable
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from dataclasses import dataclass
 from math import floor
 
 from sssp_lab.algorithms.stats import OperationStats
@@ -17,6 +20,15 @@ from sssp_lab.utils import initialise_single_source
 
 def _bucket_index(distance: float, delta: float) -> int:
     return int(floor(distance / delta))
+
+
+@dataclass(frozen=True, slots=True)
+class DeltaSteppingRun:
+    """One Δ-stepping result with the source and operation counters."""
+
+    source: Node
+    result: PathResult
+    stats: OperationStats
 
 
 def delta_stepping(
@@ -101,3 +113,47 @@ def delta_stepping(
         counters.settled_nodes += len(settled_in_bucket)
 
     return PathResult(source=source, distances=distances, predecessors=predecessors)
+
+
+def _delta_stepping_task(payload: tuple[Graph, Node, float]) -> DeltaSteppingRun:
+    graph, source, delta = payload
+    stats = OperationStats()
+    result = delta_stepping(graph, source, delta=delta, stats=stats)
+    return DeltaSteppingRun(source=source, result=result, stats=stats)
+
+
+def parallel_delta_stepping(
+    graph: Graph,
+    sources: Iterable[Node],
+    *,
+    delta: float,
+    backend: str = "thread",
+    max_workers: int | None = None,
+) -> list[DeltaSteppingRun]:
+    """Run independent Δ-stepping queries through a thread or process pool.
+
+    This is an educational benchmark helper for repeated source queries. It does
+    not implement the parallel bucket-relaxation algorithm from the original
+    Δ-stepping paper; each source still uses the sequential implementation.
+    """
+
+    if backend not in {"thread", "process"}:
+        raise ValueError("backend must be 'thread' or 'process'")
+    if max_workers is not None and max_workers <= 0:
+        raise ValueError("max_workers must be positive")
+    if not isinstance(delta, (int, float)):
+        raise TypeError("delta must be numeric")
+    if delta <= 0:
+        raise ValueError("delta must be positive")
+    graph.require_non_negative_weights()
+
+    source_tuple = tuple(sources)
+    for source in source_tuple:
+        graph.require_node(source)
+    if not source_tuple:
+        return []
+
+    payloads = [(graph, source, float(delta)) for source in source_tuple]
+    executor_type = ThreadPoolExecutor if backend == "thread" else ProcessPoolExecutor
+    with executor_type(max_workers=max_workers) as executor:
+        return list(executor.map(_delta_stepping_task, payloads))

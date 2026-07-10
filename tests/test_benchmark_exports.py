@@ -65,9 +65,34 @@ def test_stepping_policy_markdown_summary(tmp_path: Path) -> None:
     ]
 
 
+def test_parallel_delta_markdown_summary(tmp_path: Path) -> None:
+    benchmark = load_script("benchmark_parallel_delta")
+    output = tmp_path / "parallel.md"
+    rows: list[dict[str, object]] = [
+        {
+            "mode": "thread",
+            "workers": 2,
+            "source_count": 4,
+            "seconds": 0.5,
+            "seconds_per_source": 0.125,
+            "relaxations": 40,
+            "bucket_phases": 8,
+        }
+    ]
+
+    benchmark.write_markdown_summary(rows, output)
+
+    assert output.read_text(encoding="utf-8").splitlines() == [
+        "| mode | workers | sources | seconds | seconds/source | relaxations | bucket phases |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+        "| thread | 2 | 4 | 0.500000 | 0.125000 | 40 | 8 |",
+    ]
+
+
 def test_benchmark_scripts_write_markdown_outputs(tmp_path: Path) -> None:
     delta_output = tmp_path / "delta.json"
     policies_output = tmp_path / "policies.json"
+    parallel_output = tmp_path / "parallel.json"
 
     subprocess.run(
         [
@@ -99,8 +124,28 @@ def test_benchmark_scripts_write_markdown_outputs(tmp_path: Path) -> None:
         cwd=ROOT,
         check=True,
     )
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/benchmark_parallel_delta.py",
+            "--nodes",
+            "20",
+            "--edges",
+            "60",
+            "--sources",
+            "3",
+            "--modes",
+            "sequential,thread",
+            "--output",
+            str(parallel_output),
+        ],
+        cwd=ROOT,
+        check=True,
+    )
 
     assert delta_output.with_suffix(".csv").exists()
     assert delta_output.with_suffix(".md").exists()
     assert policies_output.with_suffix(".csv").exists()
     assert policies_output.with_suffix(".md").exists()
+    assert parallel_output.with_suffix(".csv").exists()
+    assert parallel_output.with_suffix(".md").exists()

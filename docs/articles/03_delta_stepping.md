@@ -24,6 +24,17 @@ python scripts/benchmark_delta_sweep.py --deltas 1,2,5,10
 It exports JSON, CSV, and markdown rows with runtime, bucket phases, light
 relaxations, heavy relaxations, reinserts, and maximum bucket size.
 
+For repeated-source experiments, the repository also includes an educational
+pool benchmark:
+
+```bash
+python scripts/benchmark_parallel_delta.py --sources 8 --modes sequential,thread,process
+```
+
+This runs independent source queries through thread or process pools. It is a
+benchmarking tool for repeated workloads, not an implementation of intra-bucket
+parallel relaxation.
+
 The implementation is sequential and correctness-first. Python can illustrate
 the algorithm's light/heavy split and batching behavior, but interpreter
 overhead means it should not be used to claim parallel speedups.

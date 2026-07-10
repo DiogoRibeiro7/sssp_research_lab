@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from sssp_lab.algorithms.bellman_ford import NegativeCycleError, bellman_ford
-from sssp_lab.algorithms.delta_stepping import delta_stepping
+from sssp_lab.algorithms.delta_stepping import delta_stepping, parallel_delta_stepping
 from sssp_lab.algorithms.dial import dial_circular_sssp, dial_sssp
 from sssp_lab.algorithms.dijkstra_binary_heap import dijkstra
 from sssp_lab.algorithms.dijkstra_radix import dijkstra_radix_heap
@@ -208,6 +208,38 @@ def test_delta_stepping_matches_dijkstra_over_delta_values(delta: float) -> None
     assert_same_distances(result.distances, dijkstra(graph, 0).distances)
     assert stats.bucket_phases > 0
     assert stats.light_relaxations + stats.heavy_relaxations == stats.relaxations
+
+
+def test_parallel_delta_stepping_thread_backend_matches_sequential() -> None:
+    graph = make_random_graph(
+        nodes=20,
+        edges=80,
+        directed=True,
+        min_weight=1,
+        max_weight=10,
+        seed=67,
+    )
+    sources = (0, 5, 11)
+
+    runs = parallel_delta_stepping(graph, sources, delta=3.0, backend="thread", max_workers=2)
+
+    assert [run.source for run in runs] == list(sources)
+    for run in runs:
+        assert_same_distances(run.result.distances, delta_stepping(graph, run.source, delta=3.0).distances)
+        assert_same_distances(run.result.distances, dijkstra(graph, run.source).distances)
+        assert run.stats.relaxations > 0
+
+
+def test_parallel_delta_stepping_validates_options() -> None:
+    graph = Graph.from_edges([(0, 1, 1)], directed=True)
+
+    assert parallel_delta_stepping(graph, (), delta=1.0) == []
+    with pytest.raises(ValueError):
+        parallel_delta_stepping(graph, (0,), delta=1.0, backend="unknown")
+    with pytest.raises(ValueError):
+        parallel_delta_stepping(graph, (0,), delta=0)
+    with pytest.raises(ValueError):
+        parallel_delta_stepping(graph, (99,), delta=1.0)
 
 
 @pytest.mark.parametrize(
