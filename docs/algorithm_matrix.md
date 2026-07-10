@@ -11,5 +11,6 @@
 | Contraction Hierarchies | yes, small-graph educational | no | shortcuts + upward bidirectional search | contraction order and witness search complexity |
 | Bounded multi-source primitive | yes | no | bounded frontier expansion | not full BMSSP theorem |
 | Frontier partition SSSP | experimental | no | expanding bounded frontiers | not a published algorithm implementation |
+| Incomplete-vertex index | experimental helper | no | boundary labels into unresolved vertices | not full 2026 machinery |
 | Thorup-like lab | baseline only | no | integer component lab | not full Thorup hierarchy |
 | Johnson SSSP | yes | no | potentials + Dijkstra | not near-linear negative SSSP |

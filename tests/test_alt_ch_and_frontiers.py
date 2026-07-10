@@ -23,7 +23,7 @@ from sssp_lab.algorithms.contraction_hierarchies import (
 )
 from sssp_lab.algorithms.delta_stepping import delta_stepping
 from sssp_lab.algorithms.dijkstra_binary_heap import dijkstra
-from sssp_lab.algorithms.frontier_sssp import frontier_partition_sssp
+from sssp_lab.algorithms.frontier_sssp import build_incomplete_vertex_index, frontier_partition_sssp
 from sssp_lab.algorithms.negative_weight import (
     check_against_bellman_ford,
     decompose_by_edge_sign,
@@ -311,6 +311,33 @@ def test_recursive_bmssp_validates_options() -> None:
         raise AssertionError("invalid recursive BMSSP bound was accepted")
 
 
+def test_incomplete_vertex_index_tracks_boundary_labels() -> None:
+    graph = Graph.from_edges(
+        [(0, 1, 2), (0, 2, 5), (1, 2, 1), (2, 3, 1)],
+        directed=True,
+    )
+    distances = {0: 0.0, 1: 2.0, 2: float("inf"), 3: float("inf")}
+
+    index = build_incomplete_vertex_index(graph, distances)
+
+    assert index.complete == frozenset({0, 1})
+    assert index.incomplete == frozenset({2, 3})
+    assert {(edge.source, edge.target) for edge in index.boundary_edges} == {(0, 2), (1, 2)}
+    assert index.boundary_labels == {2: 3.0}
+    assert index.frontier_sources() == frozenset({2})
+
+
+def test_incomplete_vertex_index_can_use_settled_set() -> None:
+    graph = Graph.from_edges([(0, 1, 1), (1, 2, 1)], directed=True)
+    distances = {0: 0.0, 1: 1.0, 2: 2.0}
+
+    index = build_incomplete_vertex_index(graph, distances, settled={0})
+
+    assert index.complete == frozenset({0})
+    assert index.incomplete == frozenset({1, 2})
+    assert index.boundary_labels == {1: 1.0}
+
+
 def test_frontier_partition_matches_dijkstra() -> None:
     graph = Graph.from_edges(
         [(0, 1, 2), (1, 2, 2), (0, 3, 10), (2, 3, 1)],
@@ -318,6 +345,8 @@ def test_frontier_partition_matches_dijkstra() -> None:
     )
     result, stats = frontier_partition_sssp(graph, 0, initial_bound=2, growth=2, debug=True)
     assert stats.rounds >= 1
+    assert len(stats.incomplete_counts) == stats.rounds
+    assert len(stats.boundary_edge_counts) == stats.rounds
     assert_same_distances(result.distances, dijkstra(graph, 0).distances)
 
 

@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from sssp_lab.algorithms.bmssp import BoundedMultiSourceResult, bounded_multi_source_sssp
-from sssp_lab.graph import Graph, Node, PathResult
+from sssp_lab.graph import Edge, Graph, Node, PathResult
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,6 +21,8 @@ class FrontierStats:
     rounds: int
     settled_counts: tuple[int, ...]
     frontier_counts: tuple[int, ...]
+    incomplete_counts: tuple[int, ...] = ()
+    boundary_edge_counts: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +35,21 @@ class FrontierRound:
     frontier: frozenset[Node]
 
 
+@dataclass(frozen=True, slots=True)
+class IncompleteVertexIndex:
+    """Snapshot of unresolved vertices and edges crossing into them."""
+
+    complete: frozenset[Node]
+    incomplete: frozenset[Node]
+    boundary_edges: tuple[Edge, ...]
+    boundary_labels: dict[Node, float]
+
+    def frontier_sources(self) -> frozenset[Node]:
+        """Return incomplete nodes that have finite labels from boundary edges."""
+
+        return frozenset(self.boundary_labels)
+
+
 def construct_frontier(result: BoundedMultiSourceResult) -> frozenset[Node]:
     """Return the next frontier from one bounded exploration result."""
 
@@ -43,6 +60,42 @@ def incomplete_vertices(graph: Graph, distances: dict[Node, float]) -> frozenset
     """Return vertices whose labels are still infinite."""
 
     return frozenset(node for node in graph.nodes if distances[node] == float("inf"))
+
+
+def build_incomplete_vertex_index(
+    graph: Graph,
+    distances: dict[Node, float],
+    *,
+    settled: set[Node] | frozenset[Node] | None = None,
+) -> IncompleteVertexIndex:
+    """Build an index over incomplete vertices and their boundary labels."""
+
+    if set(distances) != set(graph.nodes):
+        raise ValueError("distances must contain exactly the graph nodes")
+    complete = (
+        frozenset(node for node, distance in distances.items() if distance < float("inf"))
+        if settled is None
+        else frozenset(settled)
+    )
+    incomplete = frozenset(graph.nodes - complete)
+    boundary_edges: list[Edge] = []
+    boundary_labels: dict[Node, float] = {}
+    for edge in graph.iter_edges():
+        if edge.source not in complete or edge.target not in incomplete:
+            continue
+        source_distance = distances[edge.source]
+        if source_distance == float("inf"):
+            continue
+        candidate = source_distance + edge.weight
+        boundary_edges.append(edge)
+        if candidate < boundary_labels.get(edge.target, float("inf")):
+            boundary_labels[edge.target] = candidate
+    return IncompleteVertexIndex(
+        complete=complete,
+        incomplete=incomplete,
+        boundary_edges=tuple(boundary_edges),
+        boundary_labels=boundary_labels,
+    )
 
 
 def check_frontier_invariants(
@@ -111,6 +164,8 @@ def frontier_partition_sssp(
     settled_total: set[Node] = set()
     settled_counts: list[int] = []
     frontier_counts: list[int] = []
+    incomplete_counts: list[int] = []
+    boundary_edge_counts: list[int] = []
     rounds = 0
 
     while len(settled_total) < len(graph.nodes) and current_sources:
@@ -136,6 +191,13 @@ def frontier_partition_sssp(
         settled_total.update(result.settled)
         settled_counts.append(len(result.settled))
         frontier_counts.append(len(result.frontier))
+        incomplete_index = build_incomplete_vertex_index(
+            graph,
+            global_distances,
+            settled=settled_total,
+        )
+        incomplete_counts.append(len(incomplete_index.incomplete))
+        boundary_edge_counts.append(len(incomplete_index.boundary_edges))
         current_sources = set(construct_frontier(result))
         bound *= growth
 
@@ -150,5 +212,7 @@ def frontier_partition_sssp(
             rounds=rounds,
             settled_counts=tuple(settled_counts),
             frontier_counts=tuple(frontier_counts),
+            incomplete_counts=tuple(incomplete_counts),
+            boundary_edge_counts=tuple(boundary_edge_counts),
         ),
     )

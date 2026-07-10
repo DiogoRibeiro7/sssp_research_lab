@@ -9,6 +9,9 @@ directed SSSP work. It is not a faithful implementation of the 2026 algorithm.
   bounded multi-source result.
 - `incomplete_vertices(graph, distances)` identifies vertices that still have
   infinite labels.
+- `build_incomplete_vertex_index(...)` records complete/incomplete vertices,
+  boundary edges crossing into incomplete vertices, and the best boundary label
+  for each reachable incomplete vertex.
 - `bounded_exploration_round(...)` runs one bounded search from absolute source
   offsets.
 - `check_frontier_invariants(...)` verifies that frontier sources carry finite
@@ -27,8 +30,8 @@ Differences:
 
 - The current frontier experiment uses geometric bound growth.
 - It does not implement the paper's recursive decomposition.
-- It does not implement the 2026 paper's incomplete-vertex machinery beyond a
-  simple inspection helper.
+- It implements a small deterministic incomplete-vertex tracker for experiments,
+  but not the 2026 paper's full machinery or complexity guarantees.
 - It uses heap-based bounded exploration internally, so no asymptotic claim is
   made from the Python implementation.
 

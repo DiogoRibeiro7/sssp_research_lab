@@ -31,6 +31,8 @@
   Current coverage adds finite-bound recursive splitting around the bounded
   multi-source primitive, with frontier labels carried between recursive levels.
 - Develop data structures required by the 2026 faster directed SSSP paper.
+  Current coverage includes an incomplete-vertex index with boundary-edge and
+  boundary-label tracking for frontier experiments.
 - Implement Thorup's component hierarchy for undirected integer SSSP.
 - Implement simplified decomposition experiments for negative-weight near-linear SSSP.
 
