@@ -145,19 +145,38 @@ def test_ch_query_matches_dijkstra_on_undirected_graph() -> None:
     assert ch_query(index, 0, 3) == dijkstra(graph, 0).distances[3]
 
 
+def test_ch_query_populates_stats() -> None:
+    graph = Graph.from_edges(
+        [(0, 1, 1), (1, 2, 1), (2, 3, 1), (0, 3, 10), (1, 3, 5)],
+        directed=False,
+    )
+    index = build_ch_index(graph, order=[0, 1, 2, 3])
+    stats = OperationStats()
+
+    distance = ch_query(index, 0, 3, stats=stats)
+
+    assert distance == dijkstra(graph, 0).distances[3]
+    assert stats.relaxations > 0
+    assert stats.queue_pushes > 0
+    assert stats.queue_pops > 0
+    assert stats.settled_nodes > 0
+
+
 def test_ch_query_path_unpacks_shortcuts() -> None:
     graph = Graph.from_edges(
         [(0, 1, 1), (1, 2, 1), (2, 3, 1), (0, 3, 10)],
         directed=False,
     )
     index = build_ch_index(graph, order=[1, 2, 0, 3])
+    stats = OperationStats()
 
-    distance, path = ch_query_path(index, 0, 3)
+    distance, path = ch_query_path(index, 0, 3, stats=stats)
 
     assert distance == dijkstra(graph, 0).distances[3]
     assert path[0] == 0
     assert path[-1] == 3
     assert len(path) >= 2
+    assert stats.relaxations > 0
 
 
 def test_ch_order_heuristics_cover_small_graph() -> None:

@@ -29,3 +29,6 @@ PY
 
 These orderings are useful for inspection and small benchmarks, not for large
 road-network preprocessing.
+
+`ch_query` and `ch_query_path` accept `OperationStats` for query diagnostics.
+Counters cover both upward searches used by the bidirectional query.

@@ -10,6 +10,7 @@ from __future__ import annotations
 import heapq
 from dataclasses import dataclass
 
+from sssp_lab.algorithms.stats import OperationStats
 from sssp_lab.graph import Edge, Graph, Node
 
 
@@ -307,21 +308,38 @@ def build_ch_index(
     )
 
 
-def _search_upward(graph: Graph, source: Node) -> tuple[dict[Node, float], dict[Node, Node | None]]:
+def _search_upward(
+    graph: Graph,
+    source: Node,
+    *,
+    stats: OperationStats | None = None,
+) -> tuple[dict[Node, float], dict[Node, Node | None]]:
     distances = {node: float("inf") for node in graph.nodes}
     predecessors: dict[Node, Node | None] = {node: None for node in graph.nodes}
     distances[source] = 0.0
     queue: list[tuple[float, Node]] = [(0.0, source)]
+    if stats is not None:
+        stats.queue_pushes += 1
     while queue:
         distance, node = heapq.heappop(queue)
+        if stats is not None:
+            stats.queue_pops += 1
         if distance != distances[node]:
+            if stats is not None:
+                stats.stale_pops += 1
             continue
+        if stats is not None:
+            stats.settled_nodes += 1
         for edge in graph.neighbors(node):
+            if stats is not None:
+                stats.relaxations += 1
             candidate = distance + edge.weight
             if candidate < distances[edge.target]:
                 distances[edge.target] = candidate
                 predecessors[edge.target] = node
                 heapq.heappush(queue, (candidate, edge.target))
+                if stats is not None:
+                    stats.queue_pushes += 1
     return distances, predecessors
 
 
@@ -361,23 +379,39 @@ def _unpack_path(path: list[Node], shortcuts: dict[tuple[Node, Node], Shortcut])
     return unpacked
 
 
-def ch_query(index: CHIndex, source: Node, target: Node) -> float:
+def ch_query(
+    index: CHIndex,
+    source: Node,
+    target: Node,
+    *,
+    stats: OperationStats | None = None,
+) -> float:
     """Return the shortest-path distance using the CH index."""
 
     index.upward.require_node(source)
     index.upward.require_node(target)
-    forward, _ = _search_upward(index.upward, source)
-    backward, _ = _search_upward(index.downward.reversed(), target)
+    forward, _ = _search_upward(index.upward, source, stats=stats)
+    backward, _ = _search_upward(index.downward.reversed(), target, stats=stats)
     return min(forward[node] + backward[node] for node in index.upward.nodes)
 
 
-def ch_query_path(index: CHIndex, source: Node, target: Node) -> tuple[float, list[Node]]:
+def ch_query_path(
+    index: CHIndex,
+    source: Node,
+    target: Node,
+    *,
+    stats: OperationStats | None = None,
+) -> tuple[float, list[Node]]:
     """Return the CH distance and an unpacked source-to-target path."""
 
     index.upward.require_node(source)
     index.upward.require_node(target)
-    forward, forward_predecessors = _search_upward(index.upward, source)
-    backward, backward_predecessors = _search_upward(index.downward.reversed(), target)
+    forward, forward_predecessors = _search_upward(index.upward, source, stats=stats)
+    backward, backward_predecessors = _search_upward(
+        index.downward.reversed(),
+        target,
+        stats=stats,
+    )
     meeting = min(index.upward.nodes, key=lambda node: forward[node] + backward[node])
     distance = forward[meeting] + backward[meeting]
     if distance == float("inf"):
