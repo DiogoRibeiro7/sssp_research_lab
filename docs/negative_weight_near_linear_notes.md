@@ -35,3 +35,7 @@ Bellman-Ford detects reachable negative cycles. Johnson reweighting uses
 Bellman-Ford on an augmented graph, so it also raises when a negative cycle is
 present. Any future randomized implementation must state whether it detects
 cycles or assumes they are absent.
+
+Use `scripts/benchmark_negative.py` to compare Bellman-Ford, Johnson
+reweighting, and the deterministic decomposition experiment on generated
+negative DAGs.

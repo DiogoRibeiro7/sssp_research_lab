@@ -42,6 +42,7 @@ python scripts/benchmark_stepping_policies.py --nodes 500 --edges 2500 --output 
 python scripts/benchmark_parallel_delta.py --nodes 1000 --edges 5000 --sources 8 --output .benchmarks/parallel_delta.json
 python scripts/benchmark_ch.py --nodes 100 --edges 300 --pairs 10 --output .benchmarks/ch.json
 python scripts/benchmark_frontier.py --nodes 1000 --edges 5000 --output .benchmarks/frontier.json
+python scripts/benchmark_negative.py --nodes 100 --edges 300 --output .benchmarks/negative.json
 ```
 
 Each command writes `.json`, `.csv`, and `.md` files with the same base path.

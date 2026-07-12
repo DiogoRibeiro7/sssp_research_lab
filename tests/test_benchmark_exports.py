@@ -162,12 +162,37 @@ def test_frontier_markdown_summary(tmp_path: Path) -> None:
     ]
 
 
+def test_negative_markdown_summary(tmp_path: Path) -> None:
+    benchmark = load_script("benchmark_negative")
+    output = tmp_path / "negative.md"
+    rows: list[dict[str, object]] = [
+        {
+            "algorithm": "johnson",
+            "seconds": 0.25,
+            "reachable": 4,
+            "negative_edges": 2,
+            "relaxations": 12,
+            "queue_pops": 5,
+            "scale_rounds": 0,
+        }
+    ]
+
+    benchmark.write_markdown_summary(rows, output)
+
+    assert output.read_text(encoding="utf-8").splitlines() == [
+        "| algorithm | seconds | reachable | negative edges | relaxations | queue pops | scale rounds |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+        "| johnson | 0.250000 | 4 | 2 | 12 | 5 | 0 |",
+    ]
+
+
 def test_benchmark_script_defaults_use_local_artifact_directory() -> None:
     expected_defaults = {
         "benchmark_alt.py": ".benchmarks/alt.json",
         "benchmark_ch.py": ".benchmarks/ch.json",
         "benchmark_delta_sweep.py": ".benchmarks/delta_sweep.json",
         "benchmark_frontier.py": ".benchmarks/frontier.json",
+        "benchmark_negative.py": ".benchmarks/negative.json",
         "benchmark_parallel_delta.py": ".benchmarks/parallel_delta.json",
         "benchmark_rust_accel.py": ".benchmarks/rust_accel.json",
         "benchmark_sssp.py": ".benchmarks/sssp.json",
@@ -187,6 +212,7 @@ def test_benchmark_scripts_write_markdown_outputs(tmp_path: Path) -> None:
     alt_output = tmp_path / "alt.json"
     ch_output = tmp_path / "ch.json"
     frontier_output = tmp_path / "frontier.json"
+    negative_output = tmp_path / "negative.json"
 
     subprocess.run(
         [
@@ -290,6 +316,20 @@ def test_benchmark_scripts_write_markdown_outputs(tmp_path: Path) -> None:
         cwd=ROOT,
         check=True,
     )
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/benchmark_negative.py",
+            "--nodes",
+            "12",
+            "--edges",
+            "30",
+            "--output",
+            str(negative_output),
+        ],
+        cwd=ROOT,
+        check=True,
+    )
 
     assert delta_output.with_suffix(".csv").exists()
     assert delta_output.with_suffix(".md").exists()
@@ -303,3 +343,5 @@ def test_benchmark_scripts_write_markdown_outputs(tmp_path: Path) -> None:
     assert ch_output.with_suffix(".md").exists()
     assert frontier_output.with_suffix(".csv").exists()
     assert frontier_output.with_suffix(".md").exists()
+    assert negative_output.with_suffix(".csv").exists()
+    assert negative_output.with_suffix(".md").exists()
