@@ -126,6 +126,7 @@ share a base path under `.benchmarks/`: a machine-readable `.json`, a flat
 | `scripts/benchmark_ch.py` | `.benchmarks/ch.*` | Contraction Hierarchies vs. Dijkstra for sampled point-to-point queries. |
 | `scripts/benchmark_frontier.py` | `.benchmarks/frontier.*` | Frontier-partition SSSP vs. Dijkstra, BMSSP primitive, and Δ-stepping. |
 | `scripts/benchmark_negative.py` | `.benchmarks/negative.*` | Bellman-Ford, Johnson, and negative-weight decomposition experiments on negative DAGs. |
+| `scripts/benchmark_thorup.py` | `.benchmarks/thorup.*` | Thorup-like integer baseline and component-hierarchy diagnostics. |
 | `scripts/benchmark_rust_accel.py` | `.benchmarks/rust_accel.*` | Rust vs. Python kernels with `speedup_vs_python`. |
 | `scripts/profile_rust_accel.py` | `.benchmarks/rust_profile.*` | Top cumulative Python functions per phase (`.json` / `.md` only). |
 

@@ -32,3 +32,7 @@ including trees, cycles, sparse graphs, and disconnected components.
 
 Python can validate correctness of ideas, but it cannot directly demonstrate
 Thorup's word-RAM linear-time guarantee.
+
+Use `scripts/benchmark_thorup.py` to compare the radix-heap integer baseline
+against binary-heap Dijkstra and record component-hierarchy diagnostics on
+deterministic undirected positive-integer graphs.

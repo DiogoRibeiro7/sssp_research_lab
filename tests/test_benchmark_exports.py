@@ -186,6 +186,31 @@ def test_negative_markdown_summary(tmp_path: Path) -> None:
     ]
 
 
+def test_thorup_markdown_summary(tmp_path: Path) -> None:
+    benchmark = load_script("benchmark_thorup")
+    output = tmp_path / "thorup.md"
+    rows: list[dict[str, object]] = [
+        {
+            "algorithm": "thorup_integer_baseline",
+            "seconds": 0.25,
+            "reachable": 4,
+            "relaxations": 12,
+            "hierarchy_seconds": 0.5,
+            "hierarchy_levels": 3,
+            "component_count": 9,
+            "distance_buckets": 2,
+        }
+    ]
+
+    benchmark.write_markdown_summary(rows, output)
+
+    assert output.read_text(encoding="utf-8").splitlines() == [
+        "| algorithm | seconds | reachable | relaxations | hierarchy seconds | levels | components | buckets |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
+        "| thorup_integer_baseline | 0.250000 | 4 | 12 | 0.500000 | 3 | 9 | 2 |",
+    ]
+
+
 def test_benchmark_script_defaults_use_local_artifact_directory() -> None:
     expected_defaults = {
         "benchmark_alt.py": ".benchmarks/alt.json",
@@ -197,6 +222,7 @@ def test_benchmark_script_defaults_use_local_artifact_directory() -> None:
         "benchmark_rust_accel.py": ".benchmarks/rust_accel.json",
         "benchmark_sssp.py": ".benchmarks/sssp.json",
         "benchmark_stepping_policies.py": ".benchmarks/stepping_policies.json",
+        "benchmark_thorup.py": ".benchmarks/thorup.json",
         "profile_rust_accel.py": ".benchmarks/rust_profile.json",
     }
 
@@ -213,6 +239,7 @@ def test_benchmark_scripts_write_markdown_outputs(tmp_path: Path) -> None:
     ch_output = tmp_path / "ch.json"
     frontier_output = tmp_path / "frontier.json"
     negative_output = tmp_path / "negative.json"
+    thorup_output = tmp_path / "thorup.json"
 
     subprocess.run(
         [
@@ -330,6 +357,20 @@ def test_benchmark_scripts_write_markdown_outputs(tmp_path: Path) -> None:
         cwd=ROOT,
         check=True,
     )
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/benchmark_thorup.py",
+            "--nodes",
+            "12",
+            "--edges",
+            "24",
+            "--output",
+            str(thorup_output),
+        ],
+        cwd=ROOT,
+        check=True,
+    )
 
     assert delta_output.with_suffix(".csv").exists()
     assert delta_output.with_suffix(".md").exists()
@@ -345,3 +386,5 @@ def test_benchmark_scripts_write_markdown_outputs(tmp_path: Path) -> None:
     assert frontier_output.with_suffix(".md").exists()
     assert negative_output.with_suffix(".csv").exists()
     assert negative_output.with_suffix(".md").exists()
+    assert thorup_output.with_suffix(".csv").exists()
+    assert thorup_output.with_suffix(".md").exists()
