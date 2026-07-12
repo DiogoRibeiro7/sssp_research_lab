@@ -415,6 +415,7 @@ def test_benchmark_smoke_suite_writes_all_outputs(tmp_path: Path) -> None:
         "frontier",
         "negative",
         "thorup",
+        "rust_accel",
     ]:
         assert (output_dir / f"{stem}.json").exists()
         assert (output_dir / f"{stem}.csv").exists()

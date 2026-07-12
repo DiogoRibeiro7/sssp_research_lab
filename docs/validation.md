@@ -10,9 +10,10 @@ python scripts/benchmark_smoke_suite.py --output-dir .benchmarks/smoke_suite
 ```
 
 The benchmark smoke suite writes JSON, CSV, and markdown outputs for the
-installed CLI plus the source-only non-Rust benchmark scripts. Files under
-`.benchmarks/` are local run artifacts and are not part of the source
-distribution.
+installed CLI plus source-only benchmark scripts. The Rust acceleration
+benchmark runs in Python-only fallback mode unless the optional extension is
+installed. Files under `.benchmarks/` are local run artifacts and are not part
+of the source distribution.
 
 Optional Rust acceleration is checked in two layers:
 

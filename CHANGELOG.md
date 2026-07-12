@@ -21,8 +21,8 @@ validation changes, and benchmark-relevant implementation work.
 - Benchmark documentation now covers the expanded output schemas, including
   preprocessing, frontier, negative-decomposition, and component-hierarchy
   diagnostics.
-- CI now runs the non-Rust benchmark smoke suite across the installed CLI and
-  benchmark scripts.
+- CI now runs the benchmark smoke suite across the installed CLI, benchmark
+  scripts, and Rust benchmark Python fallback rows.
 - README install instructions now separate runtime installation from
   development/test tooling.
 - Restored the Zenodo DOI placeholder in the README badge and BibTeX citation

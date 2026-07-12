@@ -134,6 +134,18 @@ def smoke_commands(output_dir: Path) -> list[list[str]]:
             "--output",
             str(output_dir / "thorup.json"),
         ],
+        [
+            sys.executable,
+            "scripts/benchmark_rust_accel.py",
+            "--nodes",
+            "20",
+            "--edges",
+            "60",
+            "--sources",
+            "2",
+            "--output",
+            str(output_dir / "rust_accel.json"),
+        ],
     ]
 
 
