@@ -42,3 +42,7 @@ Differences:
 The implementation is tested against Dijkstra on directed non-negative graphs.
 Source offsets are absolute distances; using local offsets in later rounds would
 produce incorrect labels, so tests include a case that exercises this boundary.
+
+Use `scripts/benchmark_frontier.py` to compare frontier partitioning against
+binary-heap Dijkstra, the bounded multi-source primitive, and Δ-stepping on the
+same deterministic graph.

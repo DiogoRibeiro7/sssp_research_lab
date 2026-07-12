@@ -113,10 +113,35 @@ def test_alt_markdown_summary(tmp_path: Path) -> None:
     ]
 
 
+def test_frontier_markdown_summary(tmp_path: Path) -> None:
+    benchmark = load_script("benchmark_frontier")
+    output = tmp_path / "frontier.md"
+    rows: list[dict[str, object]] = [
+        {
+            "algorithm": "frontier_partition",
+            "seconds": 0.25,
+            "reachable": 4,
+            "relaxations": 12,
+            "queue_pops": 5,
+            "rounds": 3,
+            "max_frontier_size": 2,
+        }
+    ]
+
+    benchmark.write_markdown_summary(rows, output)
+
+    assert output.read_text(encoding="utf-8").splitlines() == [
+        "| algorithm | seconds | reachable | relaxations | queue pops | rounds | max frontier |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+        "| frontier_partition | 0.250000 | 4 | 12 | 5 | 3 | 2 |",
+    ]
+
+
 def test_benchmark_script_defaults_use_local_artifact_directory() -> None:
     expected_defaults = {
         "benchmark_alt.py": ".benchmarks/alt.json",
         "benchmark_delta_sweep.py": ".benchmarks/delta_sweep.json",
+        "benchmark_frontier.py": ".benchmarks/frontier.json",
         "benchmark_parallel_delta.py": ".benchmarks/parallel_delta.json",
         "benchmark_rust_accel.py": ".benchmarks/rust_accel.json",
         "benchmark_sssp.py": ".benchmarks/sssp.json",
@@ -134,6 +159,7 @@ def test_benchmark_scripts_write_markdown_outputs(tmp_path: Path) -> None:
     policies_output = tmp_path / "policies.json"
     parallel_output = tmp_path / "parallel.json"
     alt_output = tmp_path / "alt.json"
+    frontier_output = tmp_path / "frontier.json"
 
     subprocess.run(
         [
@@ -203,6 +229,22 @@ def test_benchmark_scripts_write_markdown_outputs(tmp_path: Path) -> None:
         cwd=ROOT,
         check=True,
     )
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/benchmark_frontier.py",
+            "--nodes",
+            "20",
+            "--edges",
+            "60",
+            "--initial-bound",
+            "2",
+            "--output",
+            str(frontier_output),
+        ],
+        cwd=ROOT,
+        check=True,
+    )
 
     assert delta_output.with_suffix(".csv").exists()
     assert delta_output.with_suffix(".md").exists()
@@ -212,3 +254,5 @@ def test_benchmark_scripts_write_markdown_outputs(tmp_path: Path) -> None:
     assert parallel_output.with_suffix(".md").exists()
     assert alt_output.with_suffix(".csv").exists()
     assert alt_output.with_suffix(".md").exists()
+    assert frontier_output.with_suffix(".csv").exists()
+    assert frontier_output.with_suffix(".md").exists()

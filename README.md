@@ -111,6 +111,7 @@ share a base path under `.benchmarks/`: a machine-readable `.json`, a flat
 | `scripts/benchmark_stepping_policies.py` | `.benchmarks/stepping_policies.*` | Stepping policies compared across graph families and seeds. |
 | `scripts/benchmark_parallel_delta.py` | `.benchmarks/parallel_delta.*` | Multi-source Δ-stepping across worker counts, with per-source timing. |
 | `scripts/benchmark_alt.py` | `.benchmarks/alt.*` | ALT vs. plain Dijkstra for sampled point-to-point queries. |
+| `scripts/benchmark_frontier.py` | `.benchmarks/frontier.*` | Frontier-partition SSSP vs. Dijkstra, BMSSP primitive, and Δ-stepping. |
 | `scripts/benchmark_rust_accel.py` | `.benchmarks/rust_accel.*` | Rust vs. Python kernels with `speedup_vs_python`. |
 | `scripts/profile_rust_accel.py` | `.benchmarks/rust_profile.*` | Top cumulative Python functions per phase (`.json` / `.md` only). |
 

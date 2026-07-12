@@ -39,6 +39,7 @@ python scripts/benchmark_sssp.py --nodes 1000 --edges 5000 --output .benchmarks/
 python scripts/benchmark_delta_sweep.py --nodes 1000 --edges 5000 --output .benchmarks/delta_sweep.json
 python scripts/benchmark_stepping_policies.py --nodes 500 --edges 2500 --output .benchmarks/stepping_policies.json
 python scripts/benchmark_parallel_delta.py --nodes 1000 --edges 5000 --sources 8 --output .benchmarks/parallel_delta.json
+python scripts/benchmark_frontier.py --nodes 1000 --edges 5000 --output .benchmarks/frontier.json
 ```
 
 Each command writes `.json`, `.csv`, and `.md` files with the same base path.
