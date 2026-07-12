@@ -87,7 +87,7 @@ def main() -> None:
     parser.add_argument("--nodes", type=int, default=500)
     parser.add_argument("--edges", type=int, default=2500)
     parser.add_argument("--seed", type=int, default=7)
-    parser.add_argument("--output", type=Path, default=Path("benchmarks/stepping_policies.json"))
+    parser.add_argument("--output", type=Path, default=Path(".benchmarks/stepping_policies.json"))
     args = parser.parse_args()
 
     families: dict[str, GraphFactory] = {

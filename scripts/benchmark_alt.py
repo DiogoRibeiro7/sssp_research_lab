@@ -79,7 +79,7 @@ def main() -> None:
         help="Landmark selection strategy.",
     )
     parser.add_argument("--seed", type=int, default=7)
-    parser.add_argument("--output", type=Path, default=Path("benchmarks/alt.json"))
+    parser.add_argument("--output", type=Path, default=Path(".benchmarks/alt.json"))
     args = parser.parse_args()
 
     graph: Graph = make_random_graph(

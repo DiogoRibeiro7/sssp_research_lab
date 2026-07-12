@@ -66,7 +66,7 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--min-weight", type=int, default=1)
     parser.add_argument("--max-weight", type=int, default=20)
-    parser.add_argument("--output", type=Path, default=Path("benchmarks/benchmark.json"))
+    parser.add_argument("--output", type=Path, default=Path(".benchmarks/sssp.json"))
     args = parser.parse_args()
 
     graph = make_random_graph(

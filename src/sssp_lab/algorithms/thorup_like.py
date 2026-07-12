@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from sssp_lab.algorithms.dijkstra_radix import dijkstra_radix_heap
+from sssp_lab.algorithms.stats import OperationStats
 from sssp_lab.graph import Graph, Node, PathResult
 
 
@@ -187,7 +188,12 @@ def build_component_hierarchy(
     )
 
 
-def thorup_integer_baseline(graph: Graph, source: Node) -> PathResult:
+def thorup_integer_baseline(
+    graph: Graph,
+    source: Node,
+    *,
+    stats: OperationStats | None = None,
+) -> PathResult:
     """Run the integer SSSP baseline used by the Thorup lab.
 
     The function requires an undirected graph with positive integer weights and
@@ -196,4 +202,4 @@ def thorup_integer_baseline(graph: Graph, source: Node) -> PathResult:
     """
 
     validate_thorup_target_graph(graph)
-    return dijkstra_radix_heap(graph, source)
+    return dijkstra_radix_heap(graph, source, stats=stats)

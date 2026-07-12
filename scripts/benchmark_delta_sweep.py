@@ -58,7 +58,7 @@ def main() -> None:
     parser.add_argument("--edges", type=int, default=5000)
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--deltas", default="1,2,5,10")
-    parser.add_argument("--output", type=Path, default=Path("benchmarks/delta_sweep.json"))
+    parser.add_argument("--output", type=Path, default=Path(".benchmarks/delta_sweep.json"))
     args = parser.parse_args()
 
     graph = make_random_graph(

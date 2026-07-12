@@ -144,7 +144,7 @@ def main() -> None:
         default="sequential,thread,process",
         help="Comma-separated modes: sequential,thread,process.",
     )
-    parser.add_argument("--output", type=Path, default=Path("benchmarks/parallel_delta.json"))
+    parser.add_argument("--output", type=Path, default=Path(".benchmarks/parallel_delta.json"))
     args = parser.parse_args()
 
     modes = tuple(mode.strip() for mode in args.modes.split(",") if mode.strip())

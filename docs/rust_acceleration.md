@@ -16,6 +16,9 @@ Python wrappers in `sssp_lab.algorithms.rust_accel` convert the repository's
 For repeated queries, prefer `RustSsspWorkspace.from_graph(graph)`: it validates
 non-negative weights, builds CSR once, caches integer weights when possible, and
 then exposes single-source and batched Dijkstra/circular-Dial methods.
+Single-source wrappers accept `OperationStats` and populate deterministic
+wrapper-level counters for reached nodes and outgoing edge scans. The extension
+does not yet return internal heap or bucket event counts.
 
 ## Local Build
 

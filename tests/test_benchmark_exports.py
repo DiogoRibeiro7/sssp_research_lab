@@ -113,6 +113,22 @@ def test_alt_markdown_summary(tmp_path: Path) -> None:
     ]
 
 
+def test_benchmark_script_defaults_use_local_artifact_directory() -> None:
+    expected_defaults = {
+        "benchmark_alt.py": ".benchmarks/alt.json",
+        "benchmark_delta_sweep.py": ".benchmarks/delta_sweep.json",
+        "benchmark_parallel_delta.py": ".benchmarks/parallel_delta.json",
+        "benchmark_rust_accel.py": ".benchmarks/rust_accel.json",
+        "benchmark_sssp.py": ".benchmarks/sssp.json",
+        "benchmark_stepping_policies.py": ".benchmarks/stepping_policies.json",
+        "profile_rust_accel.py": ".benchmarks/rust_profile.json",
+    }
+
+    for script_name, default_output in expected_defaults.items():
+        script = (ROOT / "scripts" / script_name).read_text(encoding="utf-8")
+        assert f'default=Path("{default_output}")' in script
+
+
 def test_benchmark_scripts_write_markdown_outputs(tmp_path: Path) -> None:
     delta_output = tmp_path / "delta.json"
     policies_output = tmp_path / "policies.json"

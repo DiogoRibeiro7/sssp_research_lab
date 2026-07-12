@@ -388,10 +388,15 @@ def test_thorup_like_baseline_and_buckets() -> None:
         [(0, 1, 1), (1, 2, 2), (2, 3, 3)],
         directed=False,
     )
-    result = thorup_integer_baseline(graph, 0)
+    stats = OperationStats()
+    result = thorup_integer_baseline(graph, 0, stats=stats)
     buckets = build_distance_scale_buckets(result, scale=2)
     assert result.distances[3] == 6
     assert buckets
+    assert stats.relaxations > 0
+    assert stats.queue_pushes > 0
+    assert stats.queue_pops > 0
+    assert stats.settled_nodes == 4
 
 
 def test_thorup_component_hierarchy_tracks_scale_components() -> None:

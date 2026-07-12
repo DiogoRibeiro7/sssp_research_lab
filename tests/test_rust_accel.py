@@ -16,6 +16,7 @@ from sssp_lab.algorithms.rust_accel import (
     graph_to_csr,
     rust_backend_available,
 )
+from sssp_lab.algorithms.stats import OperationStats
 from sssp_lab.graph import Graph
 from sssp_lab.utils import assert_same_distances
 
@@ -70,9 +71,20 @@ def test_rust_backend_unavailable_contract() -> None:
     graph = Graph.from_edges([(0, 1, 1)], directed=True)
 
     with pytest.raises(RustBackendUnavailable):
-        dijkstra_rust(graph, 0)
+        dijkstra_rust(graph, 0, stats=OperationStats())
     with pytest.raises(RustBackendUnavailable):
-        RustSsspWorkspace.from_graph(graph).dijkstra(0)
+        RustSsspWorkspace.from_graph(graph).dijkstra(0, stats=OperationStats())
+
+
+def test_rust_csr_stats_validate_source_before_backend() -> None:
+    graph = Graph.from_edges([(0, 1, 1)], directed=True)
+    csr = graph_to_csr(graph)
+    stats = OperationStats()
+
+    with pytest.raises(ValueError):
+        dijkstra_rust_csr(csr, 99, stats=stats)
+
+    assert stats.as_dict() == OperationStats().as_dict()
 
 
 @pytest.mark.skipif(not rust_backend_available(), reason="Rust backend is not installed")
@@ -99,6 +111,23 @@ def test_rust_dijkstra_accepts_prebuilt_csr() -> None:
     result = dijkstra_rust_csr(csr, 10)
 
     assert_same_distances(result.distances, dijkstra(graph, 10).distances)
+
+
+@pytest.mark.skipif(not rust_backend_available(), reason="Rust backend is not installed")
+def test_rust_dijkstra_populates_structural_stats() -> None:
+    graph = Graph.from_edges(
+        [(10, 20, 2), (10, 30, 5), (20, 30, 1), (30, 40, 3)],
+        directed=True,
+    )
+    stats = OperationStats()
+
+    result = dijkstra_rust(graph, 10, stats=stats)
+
+    assert_same_distances(result.distances, dijkstra(graph, 10).distances)
+    assert stats.settled_nodes == 4
+    assert stats.relaxations == 4
+    assert stats.queue_pushes == 4
+    assert stats.queue_pops == 4
 
 
 @pytest.mark.skipif(not rust_backend_available(), reason="Rust backend is not installed")
@@ -156,6 +185,23 @@ def test_rust_circular_dial_accepts_prebuilt_csr() -> None:
     result = dial_circular_rust_csr(csr, 0)
 
     assert_same_distances(result.distances, dial_circular_sssp(graph, 0).distances)
+
+
+@pytest.mark.skipif(not rust_backend_available(), reason="Rust backend is not installed")
+def test_rust_circular_dial_populates_structural_stats() -> None:
+    graph = Graph.from_edges(
+        [(0, 1, 2), (0, 2, 5), (1, 2, 1), (2, 3, 3)],
+        directed=True,
+    )
+    stats = OperationStats()
+
+    result = dial_circular_rust(graph, 0, stats=stats)
+
+    assert_same_distances(result.distances, dial_circular_sssp(graph, 0).distances)
+    assert stats.settled_nodes == 4
+    assert stats.relaxations == 4
+    assert stats.bucket_insertions == 4
+    assert stats.max_bucket_size == 4
 
 
 @pytest.mark.skipif(not rust_backend_available(), reason="Rust backend is not installed")

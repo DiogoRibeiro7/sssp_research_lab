@@ -185,7 +185,7 @@ def main() -> None:
     parser.add_argument("--min-weight", type=int, default=1)
     parser.add_argument("--max-weight", type=int, default=50)
     parser.add_argument("--sources", type=int, default=1)
-    parser.add_argument("--output", type=Path, default=Path("benchmarks/rust_accel.json"))
+    parser.add_argument("--output", type=Path, default=Path(".benchmarks/rust_accel.json"))
     parser.add_argument(
         "--require-rust",
         action="store_true",

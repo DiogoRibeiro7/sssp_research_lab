@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from importlib import import_module
 from types import ModuleType
 
+from sssp_lab.algorithms.stats import OperationStats
 from sssp_lab.graph import Graph, Node, PathResult
 
 try:
@@ -52,17 +53,17 @@ class RustSsspWorkspace:
         csr = graph_to_csr(graph)
         return cls(csr=csr, integer_weights=_integer_weights_or_none(csr))
 
-    def dijkstra(self, source: Node) -> PathResult:
+    def dijkstra(self, source: Node, *, stats: OperationStats | None = None) -> PathResult:
         """Compute one Dijkstra query through the prepared Rust CSR graph."""
 
-        return dijkstra_rust_csr(self.csr, source)
+        return dijkstra_rust_csr(self.csr, source, stats=stats)
 
     def dijkstra_many(self, sources: tuple[Node, ...]) -> list[PathResult]:
         """Compute several Dijkstra queries in one Rust extension call."""
 
         return dijkstra_rust_csr_many(self.csr, sources)
 
-    def dial_circular(self, source: Node) -> PathResult:
+    def dial_circular(self, source: Node, *, stats: OperationStats | None = None) -> PathResult:
         """Compute one circular-Dial query through the prepared Rust CSR graph."""
 
         integer_weights = self._require_integer_weights()
@@ -75,12 +76,14 @@ class RustSsspWorkspace:
             integer_weights,
             source_index,
         )
-        return _path_result_from_raw(
+        result = _path_result_from_raw(
             nodes=self.csr.nodes,
             source=source,
             raw_distances=raw_distances,
             raw_predecessors=raw_predecessors,
         )
+        _populate_structural_stats(self.csr, result, stats, bucketed=True)
+        return result
 
     def dial_circular_many(self, sources: tuple[Node, ...]) -> list[PathResult]:
         """Compute several circular-Dial queries in one Rust extension call."""
@@ -186,18 +189,59 @@ def _path_result_from_raw(
     )
 
 
-def dijkstra_rust(graph: Graph, source: Node) -> PathResult:
+def _populate_structural_stats(
+    csr: CSRGraph,
+    result: PathResult,
+    stats: OperationStats | None,
+    *,
+    bucketed: bool,
+) -> None:
+    """Populate deterministic wrapper-level counters for Rust extension calls."""
+
+    if stats is None:
+        return
+
+    reachable = {
+        node
+        for node, distance in result.distances.items()
+        if distance < float("inf")
+    }
+    relaxations = sum(
+        csr.offsets[index + 1] - csr.offsets[index]
+        for node, index in csr.node_to_index.items()
+        if node in reachable
+    )
+    stats.settled_nodes += len(reachable)
+    stats.relaxations += relaxations
+    stats.queue_pushes += len(reachable)
+    stats.queue_pops += len(reachable)
+    if bucketed:
+        stats.bucket_insertions += len(reachable)
+        stats.max_bucket_size = max(stats.max_bucket_size, len(reachable))
+
+
+def dijkstra_rust(
+    graph: Graph,
+    source: Node,
+    *,
+    stats: OperationStats | None = None,
+) -> PathResult:
     """Compute non-negative SSSP through the optional Rust Dijkstra kernel."""
 
     graph.require_node(source)
-    return RustSsspWorkspace.from_graph(graph).dijkstra(source)
+    return RustSsspWorkspace.from_graph(graph).dijkstra(source, stats=stats)
 
 
-def dijkstra_rust_csr(csr: CSRGraph, source: Node) -> PathResult:
+def dijkstra_rust_csr(
+    csr: CSRGraph,
+    source: Node,
+    *,
+    stats: OperationStats | None = None,
+) -> PathResult:
     """Compute non-negative SSSP through Rust using a prebuilt CSR graph."""
 
-    backend = _backend()
     source_index = csr.source_index(source)
+    backend = _backend()
     raw_distances, raw_predecessors = backend.dijkstra_csr(
         len(csr.nodes),
         csr.offsets,
@@ -205,12 +249,14 @@ def dijkstra_rust_csr(csr: CSRGraph, source: Node) -> PathResult:
         csr.weights,
         source_index,
     )
-    return _path_result_from_raw(
+    result = _path_result_from_raw(
         nodes=csr.nodes,
         source=source,
         raw_distances=raw_distances,
         raw_predecessors=raw_predecessors,
     )
+    _populate_structural_stats(csr, result, stats, bucketed=False)
+    return result
 
 
 def dijkstra_rust_csr_many(csr: CSRGraph, sources: tuple[Node, ...]) -> list[PathResult]:
@@ -236,19 +282,29 @@ def dijkstra_rust_csr_many(csr: CSRGraph, sources: tuple[Node, ...]) -> list[Pat
     ]
 
 
-def dial_circular_rust(graph: Graph, source: Node) -> PathResult:
+def dial_circular_rust(
+    graph: Graph,
+    source: Node,
+    *,
+    stats: OperationStats | None = None,
+) -> PathResult:
     """Compute integer SSSP through the optional Rust circular-Dial kernel."""
 
     graph.require_integer_weights()
     graph.require_node(source)
-    return RustSsspWorkspace.from_graph(graph).dial_circular(source)
+    return RustSsspWorkspace.from_graph(graph).dial_circular(source, stats=stats)
 
 
-def dial_circular_rust_csr(csr: CSRGraph, source: Node) -> PathResult:
+def dial_circular_rust_csr(
+    csr: CSRGraph,
+    source: Node,
+    *,
+    stats: OperationStats | None = None,
+) -> PathResult:
     """Compute integer SSSP through Rust using a prebuilt CSR graph."""
 
-    backend = _backend()
     source_index = csr.source_index(source)
+    backend = _backend()
     raw_distances, raw_predecessors = backend.dial_circular_csr(
         len(csr.nodes),
         csr.offsets,
@@ -256,12 +312,14 @@ def dial_circular_rust_csr(csr: CSRGraph, source: Node) -> PathResult:
         _integer_weights(csr),
         source_index,
     )
-    return _path_result_from_raw(
+    result = _path_result_from_raw(
         nodes=csr.nodes,
         source=source,
         raw_distances=raw_distances,
         raw_predecessors=raw_predecessors,
     )
+    _populate_structural_stats(csr, result, stats, bucketed=True)
+    return result
 
 
 def dial_circular_rust_csr_many(csr: CSRGraph, sources: tuple[Node, ...]) -> list[PathResult]:
