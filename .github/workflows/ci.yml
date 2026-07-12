@@ -27,6 +27,8 @@ jobs:
         run: mypy src
       - name: Tests
         run: pytest
+      - name: Benchmark smoke suite
+        run: python scripts/benchmark_smoke_suite.py --output-dir .benchmarks/ci_smoke_suite
       - name: Rust tests
         run: cargo test --manifest-path rust/sssp_accel/Cargo.toml
 
