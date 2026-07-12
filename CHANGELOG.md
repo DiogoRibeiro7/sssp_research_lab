@@ -21,6 +21,8 @@ validation changes, and benchmark-relevant implementation work.
 - Benchmark documentation now covers the expanded output schemas, including
   preprocessing, frontier, negative-decomposition, and component-hierarchy
   diagnostics.
+- README install instructions now separate runtime installation from
+  development/test tooling.
 - Restored the Zenodo DOI placeholder in the README badge and BibTeX citation
   so the minted record id can be filled in after archival.
 

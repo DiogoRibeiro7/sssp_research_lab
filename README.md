@@ -44,18 +44,28 @@ Main targets:
 
 ## Install
 
+For runtime use:
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install -e .
+```
+
+With Poetry for development:
+
 ```bash
 poetry install
 poetry run pytest
 ```
 
-Without Poetry:
+Without Poetry for development checks:
 
 ```bash
-python -m venv .venv
-. .venv/bin/activate
-python -m pip install -e . pytest
-pytest
+python -m pip install -e . pytest ruff mypy
+python -m pytest
+python -m ruff check .
+python -m mypy src
 ```
 
 ## Example
