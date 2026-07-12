@@ -21,6 +21,8 @@ The benchmark should compare algorithms under graph families where ordering pres
 - Number of stale queue entries.
 - Maximum bucket occupancy.
 - Settled vertices per phase.
+- Preprocessing time for ALT/CH and hierarchy-building experiments.
+- Frontier rounds, boundary edges, and decomposition diagnostics.
 - Peak memory.
 - Distance correctness against reference.
 

@@ -141,6 +141,7 @@ relevant to its script.
 | `backend` | string | Execution backend: `python` or `rust` (Rust benchmarks only). |
 | `graph_family` | string | Generated graph family (see `docs/benchmarking.md`), e.g. `road_like`, `layered_dag`. |
 | `policy` | string | Stepping policy under test (stepping-policy benchmark). |
+| `heuristic` / `landmark_strategy` | string | Preprocessing or landmark-selection strategy used by CH/ALT benchmark rows. |
 | `mode` | string | Parallel execution mode for multi-source Δ-stepping. |
 | `delta` | number | Δ value used by the stepping algorithm. |
 | `seed` | integer | Deterministic RNG seed used to generate the graph. |
@@ -148,7 +149,8 @@ relevant to its script.
 | `source_count` / `workers` | integer | Number of sources queried / worker threads used. |
 | `seconds` | number | Wall-clock runtime for the run, in seconds. |
 | `seconds_per_source` | number | `seconds` divided by `source_count` for multi-source runs. |
-| `dijkstra_seconds` / `alt_seconds` | number | Per-query runtime for the Dijkstra baseline and ALT (ALT benchmark). |
+| `dijkstra_seconds` / `alt_seconds` / `ch_seconds` | number | Per-query runtime for the Dijkstra, ALT, and CH point-to-point benchmarks. |
+| `preprocessing_seconds` / `hierarchy_seconds` | number | Time spent building preprocessing structures such as CH indexes or Thorup-like component hierarchies. |
 | `speedup_vs_python` | number | Rust runtime speedup relative to the Python baseline (Rust benchmark). |
 | `reachable` | integer | Number of nodes reached from the source(s). |
 | `relaxations` | integer | Total edge relaxations performed. |
@@ -161,6 +163,11 @@ relevant to its script.
 | `max_bucket_size` | integer | Peak occupancy of any single bucket. |
 | `heuristic_evaluations` / `alt_heuristic_evaluations` | integer | Landmark/heuristic lower-bound evaluations. |
 | `alt_heap_pops` / `alt_settled_nodes` | integer | Heap extractions / settled nodes for the ALT query. |
+| `ch_relaxations` / `ch_queue_pushes` / `ch_queue_pops` / `ch_stale_pops` / `ch_settled_nodes` | integer | Operation counters for CH query searches. |
+| `shortcut_count` | integer | Number of shortcuts added to a CH index. |
+| `rounds` / `max_frontier_size` / `max_incomplete` / `max_boundary_edges` | integer | Frontier-partition round and boundary diagnostics. |
+| `negative_edges` / `scale_rounds` / `sampled_vertices` | integer | Negative-weight decomposition diagnostics. |
+| `hierarchy_levels` / `component_count` / `distance_buckets` | integer | Thorup-like component hierarchy and distance-bucket diagnostics. |
 | `phase` | string | Profiler phase (graph generation, Python baseline, workspace prep, wrapper, prepared, batched). |
 | `top_cumulative` | list | Top cumulative-time Python functions for the phase (profiler output). |
 
