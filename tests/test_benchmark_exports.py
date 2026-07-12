@@ -113,6 +113,31 @@ def test_alt_markdown_summary(tmp_path: Path) -> None:
     ]
 
 
+def test_ch_markdown_summary(tmp_path: Path) -> None:
+    benchmark = load_script("benchmark_ch")
+    output = tmp_path / "ch.md"
+    rows: list[dict[str, object]] = [
+        {
+            "heuristic": "witness_edge_difference",
+            "source": 0,
+            "target": 3,
+            "dijkstra_seconds": 0.25,
+            "ch_seconds": 0.125,
+            "preprocessing_seconds": 0.5,
+            "shortcut_count": 2,
+            "ch_settled_nodes": 4,
+        }
+    ]
+
+    benchmark.write_markdown_summary(rows, output)
+
+    assert output.read_text(encoding="utf-8").splitlines() == [
+        "| heuristic | source | target | dijkstra seconds | ch seconds | preprocessing seconds | shortcuts | settled |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
+        "| witness_edge_difference | 0 | 3 | 0.250000 | 0.125000 | 0.500000 | 2 | 4 |",
+    ]
+
+
 def test_frontier_markdown_summary(tmp_path: Path) -> None:
     benchmark = load_script("benchmark_frontier")
     output = tmp_path / "frontier.md"
@@ -140,6 +165,7 @@ def test_frontier_markdown_summary(tmp_path: Path) -> None:
 def test_benchmark_script_defaults_use_local_artifact_directory() -> None:
     expected_defaults = {
         "benchmark_alt.py": ".benchmarks/alt.json",
+        "benchmark_ch.py": ".benchmarks/ch.json",
         "benchmark_delta_sweep.py": ".benchmarks/delta_sweep.json",
         "benchmark_frontier.py": ".benchmarks/frontier.json",
         "benchmark_parallel_delta.py": ".benchmarks/parallel_delta.json",
@@ -159,6 +185,7 @@ def test_benchmark_scripts_write_markdown_outputs(tmp_path: Path) -> None:
     policies_output = tmp_path / "policies.json"
     parallel_output = tmp_path / "parallel.json"
     alt_output = tmp_path / "alt.json"
+    ch_output = tmp_path / "ch.json"
     frontier_output = tmp_path / "frontier.json"
 
     subprocess.run(
@@ -232,6 +259,24 @@ def test_benchmark_scripts_write_markdown_outputs(tmp_path: Path) -> None:
     subprocess.run(
         [
             sys.executable,
+            "scripts/benchmark_ch.py",
+            "--nodes",
+            "8",
+            "--edges",
+            "14",
+            "--pairs",
+            "2",
+            "--heuristic",
+            "degree",
+            "--output",
+            str(ch_output),
+        ],
+        cwd=ROOT,
+        check=True,
+    )
+    subprocess.run(
+        [
+            sys.executable,
             "scripts/benchmark_frontier.py",
             "--nodes",
             "20",
@@ -254,5 +299,7 @@ def test_benchmark_scripts_write_markdown_outputs(tmp_path: Path) -> None:
     assert parallel_output.with_suffix(".md").exists()
     assert alt_output.with_suffix(".csv").exists()
     assert alt_output.with_suffix(".md").exists()
+    assert ch_output.with_suffix(".csv").exists()
+    assert ch_output.with_suffix(".md").exists()
     assert frontier_output.with_suffix(".csv").exists()
     assert frontier_output.with_suffix(".md").exists()

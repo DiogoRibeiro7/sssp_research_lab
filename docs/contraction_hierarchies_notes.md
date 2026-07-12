@@ -32,3 +32,6 @@ road-network preprocessing.
 
 `ch_query` and `ch_query_path` accept `OperationStats` for query diagnostics.
 Counters cover both upward searches used by the bidirectional query.
+
+Use `scripts/benchmark_ch.py` to compare preprocessing and sampled CH queries
+against point-to-point Dijkstra on deterministic undirected graphs.
