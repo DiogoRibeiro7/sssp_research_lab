@@ -77,6 +77,18 @@ print(dijkstra(graph, 0).distances)
 print(delta_stepping(graph, 0, delta=2.0).distances)
 ```
 
+## Command Line
+
+The package installs a small benchmark command:
+
+```bash
+sssp-benchmark --nodes 1000 --edges 5000 --seed 7
+sssp-benchmark --nodes 1000 --edges 5000 --output .benchmarks/cli_sssp.json
+```
+
+When `--output` is supplied, the command writes JSON, CSV, and markdown files
+with the same base path.
+
 ## Repository goals
 
 - Provide reliable reference implementations.
