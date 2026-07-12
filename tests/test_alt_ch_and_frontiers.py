@@ -367,11 +367,35 @@ def test_frontier_partition_matches_dijkstra() -> None:
         [(0, 1, 2), (1, 2, 2), (0, 3, 10), (2, 3, 1)],
         directed=True,
     )
-    result, stats = frontier_partition_sssp(graph, 0, initial_bound=2, growth=2, debug=True)
-    assert stats.rounds >= 1
-    assert len(stats.incomplete_counts) == stats.rounds
-    assert len(stats.boundary_edge_counts) == stats.rounds
+    result, frontier_stats = frontier_partition_sssp(graph, 0, initial_bound=2, growth=2, debug=True)
+    assert frontier_stats.rounds >= 1
+    assert len(frontier_stats.incomplete_counts) == frontier_stats.rounds
+    assert len(frontier_stats.boundary_edge_counts) == frontier_stats.rounds
     assert_same_distances(result.distances, dijkstra(graph, 0).distances)
+
+
+def test_frontier_partition_populates_operation_stats() -> None:
+    graph = Graph.from_edges(
+        [(0, 1, 2), (1, 2, 2), (0, 3, 10), (2, 3, 1)],
+        directed=True,
+    )
+    stats = OperationStats()
+
+    result, frontier_stats = frontier_partition_sssp(
+        graph,
+        0,
+        initial_bound=2,
+        growth=2,
+        debug=True,
+        stats=stats,
+    )
+
+    assert_same_distances(result.distances, dijkstra(graph, 0).distances)
+    assert frontier_stats.rounds >= 1
+    assert stats.relaxations > 0
+    assert stats.queue_pushes > 0
+    assert stats.queue_pops > 0
+    assert stats.settled_nodes > 0
 
 
 def test_frontier_partition_matches_comparison_algorithms() -> None:

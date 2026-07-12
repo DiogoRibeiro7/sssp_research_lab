@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from sssp_lab.algorithms.bmssp import BoundedMultiSourceResult, bounded_multi_source_sssp
+from sssp_lab.algorithms.stats import OperationStats
 from sssp_lab.graph import Edge, Graph, Node, PathResult
 
 
@@ -123,6 +124,7 @@ def bounded_exploration_round(
     bound: float,
     global_distances: dict[Node, float],
     debug: bool = False,
+    stats: OperationStats | None = None,
 ) -> BoundedMultiSourceResult:
     """Run one bounded exploration round from absolute source labels."""
 
@@ -132,6 +134,7 @@ def bounded_exploration_round(
         bound=bound,
         source_distances={node: global_distances[node] for node in sources},
         debug=debug,
+        stats=stats,
     )
 
 
@@ -142,6 +145,7 @@ def frontier_partition_sssp(
     initial_bound: float = 1.0,
     growth: float = 2.0,
     debug: bool = False,
+    stats: OperationStats | None = None,
 ) -> tuple[PathResult, FrontierStats]:
     """Compute SSSP by increasing bounded multi-source exploration windows.
 
@@ -183,6 +187,7 @@ def frontier_partition_sssp(
             bound=bound,
             global_distances=global_distances,
             debug=debug,
+            stats=stats,
         )
         for node, distance in result.distances.items():
             if distance < global_distances[node]:

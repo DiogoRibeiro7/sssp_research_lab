@@ -13,11 +13,13 @@ directed SSSP work. It is not a faithful implementation of the 2026 algorithm.
   boundary edges crossing into incomplete vertices, and the best boundary label
   for each reachable incomplete vertex.
 - `bounded_exploration_round(...)` runs one bounded search from absolute source
-  offsets.
+  offsets and can accumulate shared `OperationStats`.
 - `check_frontier_invariants(...)` verifies that frontier sources carry finite
   labels and that bounds grow monotonically.
 - `frontier_partition_sssp(...)` iteratively increases a bound and compares
   naturally against Dijkstra, bounded multi-source exploration, and Δ-stepping.
+  It returns round-level frontier diagnostics and accepts `OperationStats` for
+  operation-count comparisons.
 
 ## Relationship to BMSSP
 

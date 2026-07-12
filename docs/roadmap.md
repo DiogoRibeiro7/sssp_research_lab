@@ -4,9 +4,9 @@
 
 - Add operation counters to every algorithm. Current coverage includes core
   Dijkstra/Dial/radix/Delta/Bellman-Ford paths, BMSSP, stepping variants, ALT
-  and CH query stats, the Johnson negative-weight baseline, the Thorup-like
-  integer baseline, and optional Rust single-source wrappers with deterministic
-  wrapper-level structural counters.
+  and CH query stats, frontier-partition experiments, the Johnson
+  negative-weight baseline, the Thorup-like integer baseline, and optional Rust
+  single-source wrappers with deterministic wrapper-level structural counters.
 - Add property-style tests for random graphs. Current deterministic coverage
   checks distance optimality and predecessor invariants across generated graph
   families and negative DAGs.
