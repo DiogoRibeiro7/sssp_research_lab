@@ -388,3 +388,34 @@ def test_benchmark_scripts_write_markdown_outputs(tmp_path: Path) -> None:
     assert negative_output.with_suffix(".md").exists()
     assert thorup_output.with_suffix(".csv").exists()
     assert thorup_output.with_suffix(".md").exists()
+
+
+def test_benchmark_smoke_suite_writes_all_outputs(tmp_path: Path) -> None:
+    output_dir = tmp_path / "smoke"
+
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/benchmark_smoke_suite.py",
+            "--output-dir",
+            str(output_dir),
+        ],
+        cwd=ROOT,
+        check=True,
+    )
+
+    for stem in [
+        "cli_sssp",
+        "sssp",
+        "delta_sweep",
+        "stepping_policies",
+        "parallel_delta",
+        "alt",
+        "ch",
+        "frontier",
+        "negative",
+        "thorup",
+    ]:
+        assert (output_dir / f"{stem}.json").exists()
+        assert (output_dir / f"{stem}.csv").exists()
+        assert (output_dir / f"{stem}.md").exists()

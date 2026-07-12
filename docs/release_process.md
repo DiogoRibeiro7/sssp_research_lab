@@ -12,7 +12,7 @@ Run the source-only checks from a clean checkout:
 python -m pytest
 python -m ruff check .
 python -m mypy src
-python scripts/benchmark_sssp.py --nodes 50 --edges 150 --seed 7 --output .benchmarks/smoke.json
+python scripts/benchmark_smoke_suite.py --output-dir .benchmarks/release_smoke_suite
 ```
 
 Run the optional Rust extension checks:

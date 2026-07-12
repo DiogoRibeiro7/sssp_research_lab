@@ -6,12 +6,13 @@ This repository is expected to stay runnable with the standard Python toolchain:
 python -m pytest
 python -m ruff check .
 python -m mypy src
-python scripts/benchmark_sssp.py --nodes 50 --edges 150 --seed 7 --output .benchmarks/smoke.json
+python scripts/benchmark_smoke_suite.py --output-dir .benchmarks/smoke_suite
 ```
 
-The benchmark command writes JSON and CSV outputs with deterministic graph generation
-under the provided seed. Files under `.benchmarks/` are local run artifacts and are
-not part of the source distribution.
+The benchmark smoke suite writes JSON, CSV, and markdown outputs for the
+installed CLI plus the source-only non-Rust benchmark scripts. Files under
+`.benchmarks/` are local run artifacts and are not part of the source
+distribution.
 
 Optional Rust acceleration is checked in two layers:
 

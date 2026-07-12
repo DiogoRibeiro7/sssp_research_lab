@@ -118,6 +118,7 @@ share a base path under `.benchmarks/`: a machine-readable `.json`, a flat
 
 | Script | Output base (`.json` / `.csv` / `.md`) | What it measures |
 |---|---|---|
+| `scripts/benchmark_smoke_suite.py` | `.benchmarks/smoke_suite/*` | Quick deterministic smoke run across the installed CLI and non-Rust benchmark scripts. |
 | `scripts/benchmark_sssp.py` | `.benchmarks/sssp.*` | Per-algorithm runtime and reachable-node count on one graph. |
 | `scripts/benchmark_delta_sweep.py` | `.benchmarks/delta_sweep.*` | Δ-stepping across a range of Δ values with relaxation/queue/bucket instrumentation. |
 | `scripts/benchmark_stepping_policies.py` | `.benchmarks/stepping_policies.*` | Stepping policies compared across graph families and seeds. |

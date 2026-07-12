@@ -37,6 +37,7 @@ The benchmark should compare algorithms under graph families where ordering pres
 ## Local commands
 
 ```bash
+python scripts/benchmark_smoke_suite.py --output-dir .benchmarks/smoke_suite
 sssp-benchmark --nodes 1000 --edges 5000 --output .benchmarks/cli_sssp.json
 python scripts/benchmark_sssp.py --nodes 1000 --edges 5000 --output .benchmarks/sssp.json
 python scripts/benchmark_delta_sweep.py --nodes 1000 --edges 5000 --output .benchmarks/delta_sweep.json
