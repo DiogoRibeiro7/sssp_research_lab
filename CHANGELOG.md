@@ -6,8 +6,21 @@ validation changes, and benchmark-relevant implementation work.
 
 ## Unreleased
 
+### Added
+
+- `sssp-benchmark --output` now writes JSON, CSV, and markdown benchmark
+  artifacts from the installed console command.
+- Dedicated benchmark scripts for frontier partitioning, Contraction
+  Hierarchies, negative-weight baselines, and Thorup-like integer scaffolding.
+- Operation counters for CH queries, frontier partitioning, the Thorup-like
+  integer baseline, and optional Rust single-source wrappers.
+
 ### Changed
 
+- Benchmark script defaults now write local artifacts under `.benchmarks/`.
+- Benchmark documentation now covers the expanded output schemas, including
+  preprocessing, frontier, negative-decomposition, and component-hierarchy
+  diagnostics.
 - Restored the Zenodo DOI placeholder in the README badge and BibTeX citation
   so the minted record id can be filled in after archival.
 

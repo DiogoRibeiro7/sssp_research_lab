@@ -4,6 +4,16 @@ The Python package and the optional Rust extension are packaged separately. The
 Python package remains usable without Rust; the extension only adds accelerated
 CSR kernels when it is installed or copied into the source checkout.
 
+## Python-only runtime install
+
+Use this when running examples, the installed CLI, or benchmark scripts without
+the optional Rust extension:
+
+```bash
+python -m pip install -e .
+sssp-benchmark --nodes 1000 --edges 5000
+```
+
 ## Python-only development install
 
 Use this when working on correctness reference implementations or docs:
