@@ -12,7 +12,15 @@ from sssp_lab.algorithms.alt import (
     random_landmarks,
 )
 from sssp_lab.algorithms.bellman_ford import NegativeCycleError, bellman_ford
-from sssp_lab.algorithms.bmssp import BMSSPQueue, bounded_multi_source_sssp, recursive_bmssp
+from sssp_lab.algorithms.bmssp import (
+    BMSSPConfig,
+    BMSSPQueue,
+    bmssp_base_case,
+    bounded_multi_source_sssp,
+    find_pivots,
+    paper_bmssp,
+    recursive_bmssp,
+)
 from sssp_lab.algorithms.contraction_hierarchies import (
     build_ch_index,
     ch_query,
@@ -315,6 +323,357 @@ def test_bmssp_queue_validates_operations() -> None:
         assert str(exc) == "batch-prepended labels must not exceed the current queue minimum"
     else:
         raise AssertionError("out-of-order batch prepend was accepted")
+
+
+def test_find_pivots_selects_large_predecessor_subtrees() -> None:
+    graph = Graph.from_edges([(0, 1, 1), (1, 2, 1)], directed=True)
+    graph.add_node(3)
+    labels = {node: float("inf") for node in graph.nodes}
+    predecessors = {node: None for node in graph.nodes}
+    labels[0] = 0.0
+    labels[3] = 0.0
+    stats = OperationStats()
+
+    result = find_pivots(
+        graph,
+        {0, 3},
+        bound=10,
+        k=2,
+        labels=labels,
+        predecessors=predecessors,
+        stats=stats,
+    )
+
+    assert result.pivots == frozenset({0})
+    assert result.reached == frozenset({0, 1, 2, 3})
+    assert not result.partial
+    assert labels[2] == 2.0
+    assert predecessors[2] == 1
+    assert stats.relaxations == 2
+
+
+def test_find_pivots_returns_partial_when_reached_set_grows_too_large() -> None:
+    graph = Graph.from_edges(
+        [(0, 1, 1), (0, 2, 1), (0, 3, 1)],
+        directed=True,
+    )
+    labels = {node: float("inf") for node in graph.nodes}
+    predecessors = {node: None for node in graph.nodes}
+    labels[0] = 0.0
+
+    result = find_pivots(
+        graph,
+        {0},
+        bound=10,
+        k=2,
+        labels=labels,
+        predecessors=predecessors,
+    )
+
+    assert result.partial
+    assert result.pivots == frozenset({0})
+    assert result.reached == frozenset({0, 1, 2, 3})
+
+
+def test_find_pivots_respects_bound_and_validates_inputs() -> None:
+    graph = Graph.from_edges([(0, 1, 5)], directed=True)
+    labels = {0: 0.0, 1: float("inf")}
+    predecessors = {0: None, 1: None}
+
+    result = find_pivots(
+        graph,
+        {0},
+        bound=5,
+        k=1,
+        labels=labels,
+        predecessors=predecessors,
+    )
+    assert result.reached == frozenset({0})
+    assert labels[1] == float("inf")
+
+    for runner in [
+        lambda: find_pivots(graph, set(), bound=5, k=1, labels=labels, predecessors=predecessors),
+        lambda: find_pivots(graph, {0}, bound=0, k=1, labels=labels, predecessors=predecessors),
+        lambda: find_pivots(graph, {0}, bound=5, k=0, labels=labels, predecessors=predecessors),
+        lambda: find_pivots(graph, {0}, bound=5, k=1, labels={0: 0.0}, predecessors=predecessors),
+        lambda: find_pivots(graph, {1}, bound=5, k=1, labels=labels, predecessors=predecessors),
+    ]:
+        try:
+            runner()
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid find_pivots input was accepted")
+
+
+def test_bmssp_base_case_completes_when_settled_count_stays_within_k() -> None:
+    graph = Graph.from_edges([(0, 1, 2), (1, 2, 2)], directed=True)
+    labels = {node: float("inf") for node in graph.nodes}
+    predecessors = {node: None for node in graph.nodes}
+    complete: set[int] = set()
+    labels[0] = 0.0
+    stats = OperationStats()
+
+    boundary, settled = bmssp_base_case(
+        graph,
+        0,
+        bound=5,
+        k=3,
+        labels=labels,
+        predecessors=predecessors,
+        complete=complete,
+        stats=stats,
+    )
+
+    assert boundary == 5
+    assert settled == frozenset({0, 1, 2})
+    assert complete == {0, 1, 2}
+    assert labels[2] == 4.0
+    assert predecessors[2] == 1
+    assert stats.settled_nodes == 3
+
+
+def test_bmssp_base_case_returns_partial_boundary_after_k_plus_one_vertices() -> None:
+    graph = Graph.from_edges([(0, 1, 1), (1, 2, 1), (2, 3, 1)], directed=True)
+    labels = {node: float("inf") for node in graph.nodes}
+    predecessors = {node: None for node in graph.nodes}
+    labels[0] = 0.0
+
+    boundary, settled = bmssp_base_case(
+        graph,
+        0,
+        bound=10,
+        k=2,
+        labels=labels,
+        predecessors=predecessors,
+    )
+
+    assert boundary == 2.0
+    assert settled == frozenset({0, 1, 2})
+    assert labels[3] == 3.0
+    assert predecessors[3] == 2
+
+
+def test_bmssp_base_case_respects_bound_and_validates_inputs() -> None:
+    graph = Graph.from_edges([(0, 1, 5)], directed=True)
+    labels = {0: 0.0, 1: float("inf")}
+    predecessors = {0: None, 1: None}
+
+    boundary, settled = bmssp_base_case(
+        graph,
+        0,
+        bound=5,
+        k=2,
+        labels=labels,
+        predecessors=predecessors,
+    )
+    assert boundary == 5
+    assert settled == frozenset({0})
+    assert labels[1] == 5.0
+    assert predecessors[1] == 0
+
+    for runner in [
+        lambda: bmssp_base_case(
+            graph,
+            0,
+            bound=0,
+            k=1,
+            labels={0: 0.0, 1: float("inf")},
+            predecessors={0: None, 1: None},
+        ),
+        lambda: bmssp_base_case(
+            graph,
+            0,
+            bound=5,
+            k=0,
+            labels={0: 0.0, 1: float("inf")},
+            predecessors={0: None, 1: None},
+        ),
+        lambda: bmssp_base_case(
+            graph,
+            0,
+            bound=5,
+            k=1,
+            labels={0: 0.0},
+            predecessors={0: None, 1: None},
+        ),
+        lambda: bmssp_base_case(
+            graph,
+            0,
+            bound=5,
+            k=1,
+            labels={0: 0.0, 1: float("inf")},
+            predecessors={0: None},
+        ),
+        lambda: bmssp_base_case(
+            graph,
+            1,
+            bound=5,
+            k=1,
+            labels={0: 0.0, 1: float("inf")},
+            predecessors={0: None, 1: None},
+        ),
+    ]:
+        try:
+            runner()
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid bmssp_base_case input was accepted")
+
+
+def test_paper_bmssp_matches_bounded_multi_source_on_small_graph() -> None:
+    graph = Graph.from_edges(
+        [
+            (0, 1, 1),
+            (1, 2, 1),
+            (3, 4, 2),
+            (4, 2, 1),
+        ],
+        directed=True,
+    )
+    labels = {node: float("inf") for node in graph.nodes}
+    predecessors = {node: None for node in graph.nodes}
+    labels[0] = 0.0
+    labels[3] = 0.0
+    complete: set[int] = set()
+    stats = OperationStats()
+
+    result = paper_bmssp(
+        graph,
+        {0, 3},
+        bound=10,
+        level=2,
+        labels=labels,
+        predecessors=predecessors,
+        config=BMSSPConfig(k=3, child_limit=2, work_limit=20),
+        complete=complete,
+        debug=True,
+        stats=stats,
+    )
+    expected = bounded_multi_source_sssp(graph, {0, 3}, bound=10)
+
+    assert_same_distances(labels, expected.distances)
+    assert result.boundary == 10
+    assert not result.partial
+    assert result.complete_vertices == frozenset(graph.nodes)
+    assert complete == set(graph.nodes)
+    assert result.levels
+    assert stats.relaxations > 0
+
+
+def test_paper_bmssp_reports_partial_when_work_limit_is_reached() -> None:
+    graph = Graph.from_edges(
+        [(0, 1, 1), (1, 2, 1), (3, 4, 1), (4, 5, 1)],
+        directed=True,
+    )
+    labels = {node: float("inf") for node in graph.nodes}
+    predecessors = {node: None for node in graph.nodes}
+    labels[0] = 0.0
+    labels[3] = 0.0
+
+    result = paper_bmssp(
+        graph,
+        {0, 3},
+        bound=10,
+        level=1,
+        labels=labels,
+        predecessors=predecessors,
+        config=BMSSPConfig(k=2, child_limit=1, work_limit=1),
+    )
+
+    assert result.partial
+    assert result.boundary <= 10
+    assert result.complete_vertices
+
+
+def test_paper_bmssp_validates_inputs() -> None:
+    graph = Graph.from_edges([(0, 1, 1)], directed=True)
+    labels = {0: 0.0, 1: float("inf")}
+    predecessors = {0: None, 1: None}
+
+    for runner in [
+        lambda: BMSSPConfig(k=0),
+        lambda: BMSSPConfig(child_limit=0),
+        lambda: BMSSPConfig(work_limit=0),
+        lambda: paper_bmssp(
+            graph,
+            set(),
+            bound=5,
+            level=1,
+            labels=labels,
+            predecessors=predecessors,
+        ),
+        lambda: paper_bmssp(
+            graph,
+            {0},
+            bound=0,
+            level=1,
+            labels=labels,
+            predecessors=predecessors,
+        ),
+        lambda: paper_bmssp(
+            graph,
+            {0},
+            bound=5,
+            level=-1,
+            labels=labels,
+            predecessors=predecessors,
+        ),
+        lambda: paper_bmssp(
+            graph,
+            {0},
+            bound=5,
+            level=1,
+            labels={0: 0.0},
+            predecessors=predecessors,
+        ),
+        lambda: paper_bmssp(
+            graph,
+            {1},
+            bound=5,
+            level=1,
+            labels=labels,
+            predecessors=predecessors,
+        ),
+    ]:
+        try:
+            runner()
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid paper_bmssp input was accepted")
+
+
+def test_paper_bmssp_matches_bounded_multi_source_on_random_graphs() -> None:
+    for seed in range(100):
+        graph = make_random_graph(
+            nodes=12,
+            edges=35,
+            directed=True,
+            min_weight=1,
+            max_weight=9,
+            seed=seed,
+        )
+        labels = {node: float("inf") for node in graph.nodes}
+        predecessors = {node: None for node in graph.nodes}
+        labels[0] = 0.0
+
+        result = paper_bmssp(
+            graph,
+            {0},
+            bound=float("inf"),
+            level=3,
+            labels=labels,
+            predecessors=predecessors,
+            config=BMSSPConfig(k=4, child_limit=3, work_limit=64),
+            debug=True,
+        )
+        expected = bounded_multi_source_sssp(graph, {0}, bound=float("inf"))
+
+        assert_same_distances(labels, expected.distances)
+        assert not result.partial
+        assert result.boundary == float("inf")
 
 
 def test_bounded_multi_source_debug_invariants() -> None:
