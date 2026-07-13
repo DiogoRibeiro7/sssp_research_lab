@@ -3,56 +3,66 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21302832.svg)](https://doi.org/10.5281/zenodo.21302832)
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 
-A Python research repository for shortest-path algorithms around the theme:
+SSSP Research Lab is a Python implementation lab for single-source shortest
+path algorithms, especially algorithms that try to reduce or restructure the
+ordering work normally done by Dijkstra's priority queue.
 
-> **How much ordering does a shortest-path algorithm really need?**
+The central question is:
 
-The repo is designed as an implementation lab for papers related to BMSSP and the sorting barrier in single-source shortest paths.
+> How much ordering does a shortest-path algorithm really need?
 
-## What is implemented
+The repository mixes stable reference implementations, educational versions of
+classic techniques, and research-frontier scaffolds. It is intentionally honest
+about those boundaries: the BMSSP work here is a correctness-first experimental
+implementation path, not a proof of the paper's asymptotic running time.
 
-| Module | Algorithm | Status | Weight type | Graph type |
-|---|---|---:|---|---|
-| `dijkstra_binary_heap.py` | Dijkstra with binary heap | working reference | non-negative real | directed/undirected |
-| `dial.py` | Dial bucket Dijkstra | working | non-negative integer | directed/undirected |
-| `radix_heap.py`, `dijkstra_radix.py` | Radix-heap Dijkstra | working | non-negative integer | directed/undirected |
-| `delta_stepping.py` | Sequential Δ-stepping | working educational version | non-negative real | directed/undirected |
-| `bellman_ford.py` | Bellman-Ford | working reference | negative allowed, no negative cycles | directed/undirected |
-| `alt.py` | ALT point-to-point shortest paths | working | non-negative real | directed/undirected |
-| `contraction_hierarchies.py` | Contraction Hierarchies | working small-graph educational version | non-negative real | directed/undirected |
-| `bmssp.py` | Bounded multi-source SSSP + recursive scaffold | working scaffold, not a proof-level BMSSP paper implementation | non-negative real | directed/undirected |
-| `frontier_sssp.py` | Frontier-partition SSSP experiment inspired by 2026 directed SSSP | experimental | non-negative real | directed |
-| `thorup_like.py` | Integer SSSP lab helpers inspired by Thorup | component hierarchy scaffold + radix baseline, not Thorup's full algorithm | non-negative integer | undirected |
-| `negative_weight.py` | Johnson, Bellman-Ford, and decomposition experiments | working educational baseline, not near-linear Bernstein-Nanongkai-Wulff-Nilsen | integer/real negative allowed | directed |
+## Current Scope
 
-The research-frontier papers are difficult enough that a clean Python repository should be honest about what is exact, what is educational, and what is a scaffold for a coding agent. The prompts in `prompts/` are meant to harden the frontier modules step by step.
+| Module | What it contains | Status |
+|---|---|---|
+| `dijkstra_binary_heap.py` | Binary-heap Dijkstra | working reference |
+| `dial.py` | Dial bucket Dijkstra | working, integer weights |
+| `radix_heap.py`, `dijkstra_radix.py` | Radix heap and radix Dijkstra | working, integer weights |
+| `delta_stepping.py` | Sequential delta-stepping | working educational implementation |
+| `bellman_ford.py` | Bellman-Ford | working reference for negative edges without negative cycles |
+| `alt.py` | ALT point-to-point search | working educational implementation |
+| `contraction_hierarchies.py` | Contraction Hierarchies | working small-graph educational implementation |
+| `bmssp.py` | Bounded multi-source SSSP, recursive scaffold, and paper-shaped BMSSP helpers | correctness-first research scaffold |
+| `frontier_sssp.py` | Frontier-partition experiments | experimental |
+| `thorup_like.py` | Integer SSSP lab helpers inspired by Thorup | scaffold plus radix baseline |
+| `negative_weight.py` | Johnson, Bellman-Ford, and negative-weight decomposition experiments | working baselines and experiments |
 
-## Papers covered
+See [docs/algorithm_matrix.md](docs/algorithm_matrix.md) for the compact
+algorithm status matrix.
 
-See `docs/papers.md` and `references.bib`.
+## BMSSP Status
 
-Main targets:
+The BMSSP module now has two layers:
 
-1. Duan et al. — *Breaking the Sorting Barrier for Directed Single-Source Shortest Paths*.
-2. Duan et al. — *A Faster Directed Single-Source Shortest Path Algorithm*.
-3. Meyer and Sanders — *Δ-stepping: a parallelizable shortest path algorithm*.
-4. Dong et al. — *Efficient Stepping Algorithms and Implementations for Parallel Shortest Paths*.
-5. Thorup — *Undirected Single-Source Shortest Paths with Positive Integer Weights in Linear Time*.
-6. Goldberg and Harrelson — *Computing the Shortest Path: A* Search Meets Graph Theory*.
-7. Geisberger et al. — *Contraction Hierarchies*.
-8. Bernstein, Nanongkai, Wulff-Nilsen — *Negative-Weight Single-Source Shortest Paths in Near-linear Time*.
+- `bounded_multi_source_sssp(...)` and `recursive_bmssp(...)`: stable bounded
+  primitives used by other experiments.
+- `BMSSPQueue`, `find_pivots(...)`, `bmssp_base_case(...)`,
+  `derive_bmssp_parameters(...)`, and `paper_bmssp(...)`: a paper-shaped,
+  shared-label BMSSP driver built for correctness experiments.
+
+The paper-shaped driver has randomized parity tests against the bounded
+multi-source oracle, coverage for close labels and ties, disconnected directed
+graphs, adversarial bound thresholds, derived graph-size parameters, and debug
+checks for predecessor chains.
+
+What it does not claim:
+
+- the paper's block/list data-structure complexity,
+- the constant-degree graph transformation,
+- comparison-addition tie-ordering machinery,
+- the claimed `O(m log^(2/3) n)` bound.
+
+Implementation notes live in
+[docs/bmssp_implementation_notes.md](docs/bmssp_implementation_notes.md).
 
 ## Install
 
-For runtime use, use Python 3.10 through 3.12.
-
-macOS/Linux:
-
-```bash
-python -m venv .venv
-. .venv/bin/activate
-python -m pip install -e .
-```
+Python 3.10 through 3.12 is supported.
 
 Windows PowerShell:
 
@@ -62,14 +72,15 @@ py -3.12 -m venv .venv
 python -m pip install -e .
 ```
 
-With Poetry for development:
+macOS/Linux:
 
 ```bash
-poetry install
-poetry run pytest
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install -e .
 ```
 
-Without Poetry for development checks:
+For development checks:
 
 ```bash
 python -m pip install -e . pytest ruff mypy
@@ -78,28 +89,62 @@ python -m ruff check .
 python -m mypy src
 ```
 
-## Example
+Poetry also works:
+
+```bash
+poetry install
+poetry run pytest
+```
+
+## Quick Example
 
 ```python
 from sssp_lab.graph import Graph
 from sssp_lab.algorithms.dijkstra_binary_heap import dijkstra
 from sssp_lab.algorithms.delta_stepping import delta_stepping
 
-edges = [
-    (0, 1, 2.0),
-    (0, 2, 5.0),
-    (1, 2, 1.0),
-    (2, 3, 3.0),
-]
+graph = Graph.from_edges(
+    [
+        (0, 1, 2.0),
+        (0, 2, 5.0),
+        (1, 2, 1.0),
+        (2, 3, 3.0),
+    ],
+    directed=True,
+)
 
-graph = Graph.from_edges(edges, directed=True)
 print(dijkstra(graph, 0).distances)
 print(delta_stepping(graph, 0, delta=2.0).distances)
 ```
 
+BMSSP experiment:
+
+```python
+from sssp_lab.algorithms.bmssp import derive_bmssp_parameters, paper_bmssp
+
+parameters = derive_bmssp_parameters(graph)
+labels = {node: float("inf") for node in graph.nodes}
+predecessors = {node: None for node in graph.nodes}
+labels[0] = 0.0
+
+result = paper_bmssp(
+    graph,
+    {0},
+    bound=float("inf"),
+    level=parameters.max_level,
+    labels=labels,
+    predecessors=predecessors,
+    config=parameters.to_config(),
+    debug=True,
+)
+
+print(labels)
+print(result.complete_vertices)
+```
+
 ## Command Line
 
-The package installs a small benchmark command:
+The package installs one benchmark command:
 
 ```bash
 sssp-benchmark --nodes 1000 --edges 5000 --seed 7
@@ -109,94 +154,31 @@ sssp-benchmark --nodes 1000 --edges 5000 --output .benchmarks/cli_sssp.json
 When `--output` is supplied, the command writes JSON, CSV, and markdown files
 with the same base path.
 
-## Repository goals
+## Benchmarks
 
-- Provide reliable reference implementations.
-- Make algorithmic assumptions explicit.
-- Compare ordering strategies: heap ordering, buckets, radix heaps, stepping, landmarks, preprocessing, and bounded frontiers.
-- Keep research-frontier modules isolated from production-ready modules.
-- Provide prompts that a coding agent can use to improve the repo without destroying correctness.
+Benchmark scripts live in [scripts/](scripts). They generate deterministic
+graphs and write outputs under `.benchmarks/`.
 
-## Development commands
+Common scripts:
 
-```bash
-ruff check .
-mypy src
-pytest
-python scripts/benchmark_sssp.py --nodes 1000 --edges 5000
-```
+| Script | Purpose |
+|---|---|
+| `scripts/benchmark_sssp.py` | Compare core SSSP algorithms on one graph |
+| `scripts/benchmark_delta_sweep.py` | Sweep delta-stepping parameters |
+| `scripts/benchmark_frontier.py` | Compare frontier partitioning, BMSSP primitives, and delta-stepping |
+| `scripts/benchmark_alt.py` | ALT point-to-point benchmark |
+| `scripts/benchmark_ch.py` | Contraction Hierarchies point-to-point benchmark |
+| `scripts/benchmark_negative.py` | Negative-weight baselines and decomposition experiments |
+| `scripts/benchmark_thorup.py` | Thorup-like integer diagnostics |
+| `scripts/benchmark_rust_accel.py` | Optional Rust acceleration comparison |
 
-Release notes live in `CHANGELOG.md`; the repeatable release checklist is in
-`docs/release_process.md`.
+See [docs/benchmarking.md](docs/benchmarking.md) for metrics and file formats.
 
-## Benchmark outputs
+## Optional Rust Acceleration
 
-Every benchmark script is deterministic (seeded) and writes three files that
-share a base path under `.benchmarks/`: a machine-readable `.json`, a flat
-`.csv` for spreadsheets, and a `.md` summary table for quick review. See
-`docs/benchmarking.md` for the graph families, metrics, and acceptance criteria.
-
-| Script | Output base (`.json` / `.csv` / `.md`) | What it measures |
-|---|---|---|
-| `scripts/benchmark_smoke_suite.py` | `.benchmarks/smoke_suite/*` | Quick deterministic smoke run across the installed CLI and benchmark scripts, including Rust benchmark Python fallback rows. |
-| `scripts/benchmark_sssp.py` | `.benchmarks/sssp.*` | Per-algorithm runtime and reachable-node count on one graph. |
-| `scripts/benchmark_delta_sweep.py` | `.benchmarks/delta_sweep.*` | Δ-stepping across a range of Δ values with relaxation/queue/bucket instrumentation. |
-| `scripts/benchmark_stepping_policies.py` | `.benchmarks/stepping_policies.*` | Stepping policies compared across graph families and seeds. |
-| `scripts/benchmark_parallel_delta.py` | `.benchmarks/parallel_delta.*` | Multi-source Δ-stepping across worker counts, with per-source timing. |
-| `scripts/benchmark_alt.py` | `.benchmarks/alt.*` | ALT vs. plain Dijkstra for sampled point-to-point queries. |
-| `scripts/benchmark_ch.py` | `.benchmarks/ch.*` | Contraction Hierarchies vs. Dijkstra for sampled point-to-point queries. |
-| `scripts/benchmark_frontier.py` | `.benchmarks/frontier.*` | Frontier-partition SSSP vs. Dijkstra, BMSSP primitive, and Δ-stepping. |
-| `scripts/benchmark_negative.py` | `.benchmarks/negative.*` | Bellman-Ford, Johnson, and negative-weight decomposition experiments on negative DAGs. |
-| `scripts/benchmark_thorup.py` | `.benchmarks/thorup.*` | Thorup-like integer baseline and component-hierarchy diagnostics. |
-| `scripts/benchmark_rust_accel.py` | `.benchmarks/rust_accel.*` | Rust vs. Python kernels with `speedup_vs_python`. |
-| `scripts/profile_rust_accel.py` | `.benchmarks/rust_profile.*` | Top cumulative Python functions per phase (`.json` / `.md` only). |
-
-### Data dictionary
-
-Columns are a union across the benchmark outputs; each file contains the subset
-relevant to its script.
-
-| Field | Type | Meaning |
-|---|---|---|
-| `algorithm` | string | Algorithm/kernel variant identifier (e.g. `binary_heap_dijkstra`, `delta_stepping_delta_5`). |
-| `backend` | string | Execution backend: `python` or `rust` (Rust benchmarks only). |
-| `graph_family` | string | Generated graph family (see `docs/benchmarking.md`), e.g. `road_like`, `layered_dag`. |
-| `policy` | string | Stepping policy under test (stepping-policy benchmark). |
-| `heuristic` / `landmark_strategy` | string | Preprocessing or landmark-selection strategy used by CH/ALT benchmark rows. |
-| `mode` | string | Parallel execution mode for multi-source Δ-stepping. |
-| `delta` | number | Δ value used by the stepping algorithm. |
-| `seed` | integer | Deterministic RNG seed used to generate the graph. |
-| `source` / `target` | integer | Endpoint node ids for point-to-point (ALT) queries. |
-| `source_count` / `workers` | integer | Number of sources queried / worker threads used. |
-| `seconds` | number | Wall-clock runtime for the run, in seconds. |
-| `seconds_per_source` | number | `seconds` divided by `source_count` for multi-source runs. |
-| `dijkstra_seconds` / `alt_seconds` / `ch_seconds` | number | Per-query runtime for the Dijkstra, ALT, and CH point-to-point benchmarks. |
-| `preprocessing_seconds` / `hierarchy_seconds` | number | Time spent building preprocessing structures such as CH indexes or Thorup-like component hierarchies. |
-| `speedup_vs_python` | number | Rust runtime speedup relative to the Python baseline (Rust benchmark). |
-| `reachable` | integer | Number of nodes reached from the source(s). |
-| `relaxations` | integer | Total edge relaxations performed. |
-| `light_relaxations` / `heavy_relaxations` | integer | Light- vs. heavy-edge relaxations (Δ-stepping). |
-| `queue_pushes` / `queue_pops` | integer | Priority-queue insertions and extractions. |
-| `stale_pops` | integer | Queue extractions discarded as outdated. |
-| `settled_nodes` | integer | Nodes finalized with a confirmed shortest distance. |
-| `bucket_phases` | integer | Number of bucket-processing phases (Δ-stepping / Dial). |
-| `bucket_insertions` / `bucket_reinserts` | integer | Bucket insertions and re-insertions from relaxations. |
-| `max_bucket_size` | integer | Peak occupancy of any single bucket. |
-| `heuristic_evaluations` / `alt_heuristic_evaluations` | integer | Landmark/heuristic lower-bound evaluations. |
-| `alt_heap_pops` / `alt_settled_nodes` | integer | Heap extractions / settled nodes for the ALT query. |
-| `ch_relaxations` / `ch_queue_pushes` / `ch_queue_pops` / `ch_stale_pops` / `ch_settled_nodes` | integer | Operation counters for CH query searches. |
-| `shortcut_count` | integer | Number of shortcuts added to a CH index. |
-| `rounds` / `max_frontier_size` / `max_incomplete` / `max_boundary_edges` | integer | Frontier-partition round and boundary diagnostics. |
-| `negative_edges` / `scale_rounds` / `sampled_vertices` | integer | Negative-weight decomposition diagnostics. |
-| `hierarchy_levels` / `component_count` / `distance_buckets` | integer | Thorup-like component hierarchy and distance-bucket diagnostics. |
-| `phase` | string | Profiler phase (graph generation, Python baseline, workspace prep, wrapper, prepared, batched). |
-| `top_cumulative` | list | Top cumulative-time Python functions for the phase (profiler output). |
-
-## Optional Rust acceleration
-
-The repository includes an optional PyO3/maturin extension under
-`rust/sssp_accel` for CSR-based Dijkstra and circular Dial kernels. The Python
-algorithms remain the correctness reference.
+The optional PyO3/maturin extension under `rust/sssp_accel` provides CSR-based
+Dijkstra and circular Dial kernels. The Python algorithms remain the correctness
+reference.
 
 ```bash
 python -m pip install maturin
@@ -205,62 +187,56 @@ python -m pytest tests/test_rust_accel.py
 python scripts/benchmark_rust_accel.py --require-rust
 ```
 
-See `docs/rust_acceleration.md` for the design boundary and wrapper API, and
-`docs/packaging.md` for Python-only, local-extension, and wheel install flows.
+See [docs/rust_acceleration.md](docs/rust_acceleration.md) and
+[docs/packaging.md](docs/packaging.md).
 
-## How to cite
+## Papers And Notes
 
-If you use this repository in academic work, please cite it. Citation metadata
-lives in `CITATION.cff` (GitHub renders a "Cite this repository" button from it,
-and tools such as `cffconvert` can export BibTeX/APA/RIS).
+Primary paper notes and references:
 
-For the source repository, cite:
+- [docs/papers.md](docs/papers.md)
+- [docs/bmssp_implementation_notes.md](docs/bmssp_implementation_notes.md)
+- [docs/faster_directed_sssp_notes.md](docs/faster_directed_sssp_notes.md)
+- [docs/benchmarking.md](docs/benchmarking.md)
+- [references.bib](references.bib)
+
+Main topics covered include BMSSP and the sorting barrier, faster directed
+SSSP, delta-stepping, stepping policies, Thorup-style integer SSSP, ALT,
+Contraction Hierarchies, and negative-weight SSSP baselines.
+
+## Development
+
+Useful checks:
+
+```bash
+python -m pytest
+python -m ruff check .
+python -m mypy src
+python -m compileall -q src
+```
+
+Release notes live in [CHANGELOG.md](CHANGELOG.md). The repeatable release
+checklist lives in [docs/release_process.md](docs/release_process.md).
+
+## Citation
+
+If you use this repository in academic work, cite the software metadata in
+[CITATION.cff](CITATION.cff). For BibTeX:
 
 ```bibtex
 @software{ribeiro_sssp_research_lab_2026,
   author    = {Ribeiro, Diogo},
-  title      = {{SSSP Research Lab: Implementable Shortest-Path Algorithms
-                Inspired by Sorting-Barrier SSSP Research}},
-  year       = {2026},
-  version    = {1.0.0},
-  doi        = {10.5281/zenodo.21302833},
-  url        = {https://github.com/DiogoRibeiro7/sssp_research_lab}
+  title     = {{SSSP Research Lab: Implementable Shortest-Path Algorithms
+               Inspired by Sorting-Barrier SSSP Research}},
+  year      = {2026},
+  version   = {1.0.0},
+  doi       = {10.5281/zenodo.21302833},
+  url       = {https://github.com/DiogoRibeiro7/sssp_research_lab}
 }
 ```
 
-After Zenodo archives a release, prefer the version DOI for exact
-reproducibility or the concept DOI to cite the latest archived release.
-
 ## License
 
-This work is licensed under the [Creative Commons Attribution 4.0 International
-License (CC-BY-4.0)](https://creativecommons.org/licenses/by/4.0/). You are free
-to share and adapt the material for any purpose, including commercially, provided
-you give appropriate credit. The full legal code is in `LICENSE`.
-
-## Publishing
-
-Releases are archived on [Zenodo](https://zenodo.org) via its GitHub integration
-so that each tagged release receives a citable DOI.
-
-1. Ensure the repository is **public** on GitHub and `main` is pushed and
-   CI-green.
-2. Enable the repository at
-   <https://zenodo.org/account/settings/github/> (toggle it **ON**) **before**
-   creating the release.
-3. Tag and publish a release:
-
-   ```bash
-   git tag -a v1.0.0 -m "First public release"
-   git push origin v1.0.0
-   gh release create v1.0.0 --title "v1.0.0" --notes "First public release."
-   ```
-
-4. Zenodo mints a **concept DOI** (always-latest) and a **version DOI** for the
-   release. Add the concept DOI badge after the record exists, and use the
-   version DOI for versioned citations. On the Zenodo record, link the
-   affiliation to its **ROR** and attach the author **ORCID**.
-
-Keep the version in `pyproject.toml` and `CITATION.cff` in sync, and record
-user-visible changes in `CHANGELOG.md`. The repeatable checklist lives in
-`docs/release_process.md`.
+This work is licensed under the
+[Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/).
+The full license text is in [LICENSE](LICENSE).
