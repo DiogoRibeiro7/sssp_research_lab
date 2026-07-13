@@ -676,6 +676,71 @@ def test_paper_bmssp_matches_bounded_multi_source_on_random_graphs() -> None:
         assert result.boundary == float("inf")
 
 
+def test_paper_bmssp_matches_bounded_multi_source_on_layered_tie_graphs() -> None:
+    cases = [
+        Graph.from_edges(
+            [
+                (0, 1, 1.0),
+                (0, 2, 1.0),
+                (0, 3, 1.01),
+                (1, 4, 1.0),
+                (2, 4, 1.0),
+                (1, 5, 1.02),
+                (2, 5, 1.01),
+                (3, 5, 0.99),
+                (4, 6, 1.0),
+                (5, 6, 1.0),
+                (6, 7, 0.5),
+            ],
+            directed=True,
+        ),
+        Graph.from_edges(
+            [
+                (0, 1, 1.0),
+                (0, 2, 1.0),
+                (0, 3, 1.0),
+                (1, 4, 1.0),
+                (1, 5, 1.0),
+                (1, 6, 1.0),
+                (2, 4, 1.0),
+                (2, 5, 1.0),
+                (2, 6, 1.0),
+                (3, 4, 1.0),
+                (3, 5, 1.0),
+                (3, 6, 1.0),
+                (4, 7, 1.0),
+                (5, 7, 1.0),
+                (6, 7, 1.0),
+                (4, 8, 1.0),
+                (5, 8, 1.0),
+                (6, 8, 1.0),
+            ],
+            directed=True,
+        ),
+    ]
+
+    for graph in cases:
+        labels = {node: float("inf") for node in graph.nodes}
+        predecessors = {node: None for node in graph.nodes}
+        labels[0] = 0.0
+
+        result = paper_bmssp(
+            graph,
+            {0},
+            bound=float("inf"),
+            level=3,
+            labels=labels,
+            predecessors=predecessors,
+            config=BMSSPConfig(k=2, child_limit=2, work_limit=32),
+            debug=True,
+        )
+        expected = bounded_multi_source_sssp(graph, {0}, bound=float("inf"))
+
+        assert_same_distances(labels, expected.distances)
+        assert not result.partial
+        assert result.boundary == float("inf")
+
+
 def test_bounded_multi_source_debug_invariants() -> None:
     graph = Graph.from_edges([(0, 1, 1), (1, 2, 1), (0, 2, 5)], directed=True)
 
