@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import heapq
 from dataclasses import dataclass
-from math import isfinite
+from math import ceil, floor, isfinite, log2
 
 from sssp_lab.algorithms.stats import OperationStats
 from sssp_lab.graph import Graph, Node, Weight
@@ -50,6 +50,44 @@ class RecursiveBMSSPResult:
 
 
 @dataclass(frozen=True, slots=True)
+class BMSSPParameters:
+    """Paper-shaped BMSSP parameters derived from graph size."""
+
+    node_count: int
+    k: int
+    t: int
+    max_level: int
+
+    def source_limit(self, level: int) -> int:
+        """Return the approximate level source-set limit ``2 ** (level * t)``."""
+
+        if level < 0:
+            raise ValueError("level must be non-negative")
+        return 2 ** (level * self.t)
+
+    def child_limit(self, level: int) -> int:
+        """Return the recursive child source limit for ``level``."""
+
+        if level < 0:
+            raise ValueError("level must be non-negative")
+        if level == 0:
+            return 1
+        return self.source_limit(level - 1)
+
+    def to_config(self, *, level: int | None = None) -> BMSSPConfig:
+        """Create a correctness-first driver config for ``level``."""
+
+        active_level = self.max_level if level is None else level
+        if active_level < 0:
+            raise ValueError("level must be non-negative")
+        return BMSSPConfig(
+            k=self.k,
+            child_limit=self.child_limit(active_level),
+            work_limit=self.source_limit(active_level),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class BMSSPConfig:
     """Configuration for the correctness-first paper-shaped BMSSP driver."""
 
@@ -64,6 +102,12 @@ class BMSSPConfig:
             raise ValueError("child_limit must be positive")
         if self.work_limit <= 0:
             raise ValueError("work_limit must be positive")
+
+    @classmethod
+    def from_graph(cls, graph: Graph, *, level: int | None = None) -> BMSSPConfig:
+        """Derive a correctness-first driver config from graph size."""
+
+        return derive_bmssp_parameters(graph).to_config(level=level)
 
 
 @dataclass(frozen=True, slots=True)
@@ -181,6 +225,25 @@ def _validate_queue_label(label: Weight) -> float:
     if not isfinite(value):
         raise ValueError("label must be finite")
     return value
+
+
+def derive_bmssp_parameters(graph_or_node_count: Graph | int) -> BMSSPParameters:
+    """Derive clamped paper-shaped BMSSP parameters from graph size."""
+
+    if isinstance(graph_or_node_count, Graph):
+        node_count = len(graph_or_node_count.nodes)
+    elif isinstance(graph_or_node_count, int) and not isinstance(graph_or_node_count, bool):
+        node_count = graph_or_node_count
+    else:
+        raise TypeError("graph_or_node_count must be a Graph or positive integer")
+    if node_count <= 0:
+        raise ValueError("node count must be positive")
+
+    log_n = log2(max(node_count, 2))
+    k = max(1, floor((log_n ** (1 / 3)) + 1e-12))
+    t = max(1, floor((log_n ** (2 / 3)) + 1e-12))
+    max_level = max(1, ceil(log_n / t))
+    return BMSSPParameters(node_count=node_count, k=k, t=t, max_level=max_level)
 
 
 def _check_bounded_invariants(result: BoundedMultiSourceResult) -> None:
@@ -537,6 +600,7 @@ def paper_bmssp(
             _check_paper_bmssp_result(
                 graph,
                 labels,
+                predecessors,
                 complete_here,
                 boundary=boundary,
                 bound=active_bound,
@@ -588,6 +652,7 @@ def _insert_relaxed_labels(queue: BMSSPQueue, labels: dict[Node, Weight]) -> Non
 def _check_paper_bmssp_result(
     graph: Graph,
     labels: dict[Node, Weight],
+    predecessors: dict[Node, Node | None],
     complete_vertices: set[Node],
     *,
     boundary: float,
@@ -595,11 +660,44 @@ def _check_paper_bmssp_result(
 ) -> None:
     if boundary > bound:
         raise AssertionError("BMSSP boundary must not exceed the input bound")
+    if set(labels) != set(graph.nodes):
+        raise AssertionError("labels must contain exactly the graph nodes")
+    if set(predecessors) != set(graph.nodes):
+        raise AssertionError("predecessors must contain exactly the graph nodes")
     for node in complete_vertices:
         if labels[node] >= bound:
             raise AssertionError("complete BMSSP vertices must have labels below the input bound")
-    if set(labels) != set(graph.nodes):
-        raise AssertionError("labels must contain exactly the graph nodes")
+        _check_predecessor_chain(graph, labels, predecessors, node)
+
+
+def _check_predecessor_chain(
+    graph: Graph,
+    labels: dict[Node, Weight],
+    predecessors: dict[Node, Node | None],
+    node: Node,
+) -> None:
+    seen: set[Node] = set()
+    current = node
+    while predecessors[current] is not None:
+        if current in seen:
+            raise AssertionError("BMSSP predecessor chain must be acyclic")
+        seen.add(current)
+        predecessor = predecessors[current]
+        if predecessor not in labels:
+            raise AssertionError("BMSSP predecessor must be present in labels")
+        edge_weights = _edge_weights_between(graph, predecessor, current)
+        if not edge_weights:
+            raise AssertionError("BMSSP predecessor must correspond to an edge")
+        if all(
+            abs((float(labels[predecessor]) + edge_weight) - float(labels[current])) > 1e-9
+            for edge_weight in edge_weights
+        ):
+            raise AssertionError("BMSSP predecessor edge must explain the label")
+        current = predecessor
+
+
+def _edge_weights_between(graph: Graph, source: Node, target: Node) -> tuple[float, ...]:
+    return tuple(edge.weight for edge in graph.neighbors(source) if edge.target == target)
 
 
 def bounded_multi_source_sssp(

@@ -15,8 +15,10 @@ from sssp_lab.algorithms.bellman_ford import NegativeCycleError, bellman_ford
 from sssp_lab.algorithms.bmssp import (
     BMSSPConfig,
     BMSSPQueue,
+    _check_paper_bmssp_result,
     bmssp_base_case,
     bounded_multi_source_sssp,
+    derive_bmssp_parameters,
     find_pivots,
     paper_bmssp,
     recursive_bmssp,
@@ -323,6 +325,81 @@ def test_bmssp_queue_validates_operations() -> None:
         assert str(exc) == "batch-prepended labels must not exceed the current queue minimum"
     else:
         raise AssertionError("out-of-order batch prepend was accepted")
+
+
+def test_derive_bmssp_parameters_clamps_small_graphs() -> None:
+    graph = Graph(directed=True)
+    graph.add_node(0)
+
+    parameters = derive_bmssp_parameters(graph)
+    config = parameters.to_config()
+
+    assert parameters.node_count == 1
+    assert parameters.k == 1
+    assert parameters.t == 1
+    assert parameters.max_level == 1
+    assert parameters.source_limit(0) == 1
+    assert parameters.source_limit(3) == 8
+    assert parameters.child_limit(0) == 1
+    assert parameters.child_limit(3) == 4
+    assert config == BMSSPConfig(k=1, child_limit=1, work_limit=2)
+    assert BMSSPConfig.from_graph(graph) == config
+
+
+def test_derive_bmssp_parameters_follows_paper_shape_for_large_graphs() -> None:
+    parameters = derive_bmssp_parameters(2**27)
+
+    assert parameters.node_count == 2**27
+    assert parameters.k == 3
+    assert parameters.t == 9
+    assert parameters.max_level == 3
+    assert parameters.source_limit(2) == 2**18
+    assert parameters.child_limit(3) == 2**18
+    assert parameters.to_config(level=3) == BMSSPConfig(k=3, child_limit=2**18, work_limit=2**27)
+
+    for runner in [
+        lambda: derive_bmssp_parameters(0),
+        lambda: derive_bmssp_parameters(True),
+        lambda: parameters.source_limit(-1),
+        lambda: parameters.child_limit(-1),
+        lambda: parameters.to_config(level=-1),
+    ]:
+        try:
+            runner()
+        except (TypeError, ValueError):
+            pass
+        else:
+            raise AssertionError("invalid BMSSP parameter input was accepted")
+
+
+def test_paper_bmssp_accepts_derived_graph_parameters() -> None:
+    graph = make_random_graph(
+        nodes=12,
+        edges=35,
+        directed=True,
+        min_weight=1,
+        max_weight=9,
+        seed=101,
+    )
+    parameters = derive_bmssp_parameters(graph)
+    labels = {node: float("inf") for node in graph.nodes}
+    predecessors = {node: None for node in graph.nodes}
+    labels[0] = 0.0
+
+    result = paper_bmssp(
+        graph,
+        {0},
+        bound=float("inf"),
+        level=parameters.max_level,
+        labels=labels,
+        predecessors=predecessors,
+        config=parameters.to_config(),
+        debug=True,
+    )
+    expected = bounded_multi_source_sssp(graph, {0}, bound=float("inf"))
+
+    assert_same_distances(labels, expected.distances)
+    assert not result.partial
 
 
 def test_find_pivots_selects_large_predecessor_subtrees() -> None:
@@ -777,6 +854,95 @@ def test_paper_bmssp_preserves_inf_for_disconnected_vertices() -> None:
     assert predecessors[3] is None
     assert predecessors[6] is None
     assert not result.partial
+
+
+def test_paper_bmssp_respects_adversarial_bound_thresholds() -> None:
+    graph = Graph.from_edges(
+        [
+            (0, 1, 4.9),
+            (0, 2, 5.0),
+            (0, 3, 5.1),
+            (1, 4, 0.05),
+            (1, 5, 0.1),
+            (1, 6, 0.11),
+            (4, 7, 0.04),
+            (5, 8, 0.01),
+            (6, 9, 0.01),
+        ],
+        directed=True,
+    )
+    labels = {node: float("inf") for node in graph.nodes}
+    predecessors = {node: None for node in graph.nodes}
+    labels[0] = 0.0
+
+    result = paper_bmssp(
+        graph,
+        {0},
+        bound=5.0,
+        level=3,
+        labels=labels,
+        predecessors=predecessors,
+        config=BMSSPConfig(k=2, child_limit=2, work_limit=32),
+        debug=True,
+    )
+    expected = bounded_multi_source_sssp(graph, {0}, bound=5.0)
+
+    assert_same_distances(labels, expected.distances)
+    assert result.complete_vertices == frozenset({0, 1, 4, 7})
+    assert result.boundary == 5.0
+    assert not result.partial
+    assert labels[4] == 4.95
+    assert labels[7] == 4.99
+    assert labels[2] == 5.0
+    assert labels[5] == 5.0
+    assert labels[3] == 5.1
+    assert abs(labels[6] - 5.01) <= 1e-9
+    assert 8 not in result.complete_vertices
+    assert 9 not in result.complete_vertices
+
+
+def test_paper_bmssp_debug_validates_predecessor_chains() -> None:
+    graph = Graph.from_edges(
+        [
+            (0, 1, 10.0),
+            (0, 1, 1.0),
+            (1, 2, 1.0),
+        ],
+        directed=True,
+    )
+    labels = {node: float("inf") for node in graph.nodes}
+    predecessors = {node: None for node in graph.nodes}
+    labels[0] = 0.0
+
+    result = paper_bmssp(
+        graph,
+        {0},
+        bound=float("inf"),
+        level=2,
+        labels=labels,
+        predecessors=predecessors,
+        config=BMSSPConfig(k=2, child_limit=2, work_limit=16),
+        debug=True,
+    )
+
+    assert_same_distances(labels, bounded_multi_source_sssp(graph, {0}, bound=float("inf")).distances)
+    assert result.complete_vertices == frozenset(graph.nodes)
+
+    bad_predecessors = dict(predecessors)
+    bad_predecessors[2] = 0
+    try:
+        _check_paper_bmssp_result(
+            graph,
+            labels,
+            bad_predecessors,
+            {2},
+            boundary=float("inf"),
+            bound=float("inf"),
+        )
+    except AssertionError as exc:
+        assert "predecessor must correspond to an edge" in str(exc)
+    else:
+        raise AssertionError("invalid BMSSP predecessor chain was accepted")
 
 
 def test_bounded_multi_source_debug_invariants() -> None:
