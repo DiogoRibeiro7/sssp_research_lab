@@ -24,17 +24,21 @@ The current repository implements:
 - bounded multi-source exploration below an absolute bound;
 - frontier labels carried as absolute source offsets;
 - a recursive finite-bound scaffold;
-- debug invariant checks and Dijkstra comparison tests.
+- a correctness-first heap/dictionary `BMSSPQueue` interface;
+- a paper-shaped `FindPivots` helper over shared labels;
+- a distinct level-zero `bmssp_base_case`;
+- a correctness-first `paper_bmssp` driver over shared labels and predecessors;
+- graph-size parameter derivation via `derive_bmssp_parameters`;
+- debug invariant checks, predecessor-chain checks, and oracle comparison tests.
 
 The current repository does not implement:
 
-- the paper's `FindPivots` frontier-reduction routine;
-- the `BaseCase` routine as a distinct level-zero BMSSP block;
-- the block/list data structure with `Insert`, `BatchPrepend`, and `Pull`;
 - the constant-degree graph transformation;
 - the proof-level partial-execution stopping rule;
 - the comparison-addition tie-ordering machinery for equal path lengths;
 - the claimed `O(m log^(2/3) n)` running time.
+- the paper's asymptotic block/list data structure for `Insert`,
+  `BatchPrepend`, and `Pull`.
 
 ## Parameters
 
@@ -335,32 +339,40 @@ Debug mode should check these after every major block:
 
 ## Test Plan
 
-Before replacing current scaffold behavior, add tests in this order:
+The current BMSSP scaffold has tests for:
 
 1. `BMSSPQueue` duplicate-key, pull, empty, and batch-prepend behavior.
-2. `find_pivots` on small graphs where pivot subtrees are known exactly.
-3. `bmssp_base_case` against Dijkstra on singleton-source bounded searches.
-4. `paper_bmssp` on at least 100 random directed non-negative graphs.
-5. Layered DAGs with close labels and many ties.
-6. Sparse directed graphs with disconnected vertices; the paper assumes
-   reachability, but the Python API should preserve `inf` for unreachable
-   vertices.
-7. Adversarial graphs where many labels fall just below and just above a bound.
+2. `derive_bmssp_parameters` and `BMSSPConfig.from_graph` on small and large
+   graph sizes.
+3. `find_pivots` on small graphs where pivot subtrees are known exactly.
+4. `bmssp_base_case` against bounded singleton-source searches.
+5. `paper_bmssp` on at least 100 random directed non-negative graphs.
+6. Layered DAGs with close labels and many ties.
+7. Sparse directed graphs with disconnected vertices; the paper assumes
+   reachability, but the Python API preserves `inf` for unreachable vertices.
+8. Adversarial graphs where many labels fall just below and just above a bound.
+9. Debug predecessor-chain invariants, including parallel-edge paths and
+   corrupted predecessor rejection.
 
 ## Current Implementation Mapping
 
 | Paper block | Current code | Status |
 |---|---|---|
-| Global labels and predecessors | Per-call distance/predecessor maps | Needs shared-state driver |
-| `FindPivots` | Not present | Open |
-| Base case | Emulated by bounded primitive | Needs explicit function |
-| `Insert` / `BatchPrepend` / `Pull` | Not present | Open |
+| Global labels and predecessors | `paper_bmssp` shared `labels` / `predecessors` maps | Implemented for correctness experiments |
+| Paper parameters | `derive_bmssp_parameters`, `BMSSPParameters`, `BMSSPConfig.from_graph` | Implemented with small-graph clamps |
+| `FindPivots` | `find_pivots` bounded relaxation helper | Implemented correctness-first, not asymptotic |
+| Base case | `bmssp_base_case` | Implemented as level-zero bounded Dijkstra-style helper |
+| `Insert` / `BatchPrepend` / `Pull` | `BMSSPQueue` heap/dictionary implementation | Implemented semantic interface, not paper complexity |
 | Recursive BMSSP | `recursive_bmssp` finite-bound scaffold | Correct scaffold, not paper driver |
-| Partial execution threshold | Frontier/bound exhaustion only | Open |
-| Debug proof obligations | Bounded invariants | Needs oracle-assisted paper invariants |
+| Paper-shaped BMSSP | `paper_bmssp` | Implemented correctness-first under separate name |
+| Partial execution threshold | `BMSSPConfig.work_limit` and reduced-bound returns | Implemented as practical threshold, not proof-level rule |
+| Debug proof obligations | bounded invariants and predecessor-chain checks | Implemented local checks; oracle checks live in tests |
 
 ## Next Implementation Step
 
-Add the `BMSSPQueue` interface with a correctness-first heap/dictionary
-implementation and tests. This creates the interface needed by the paper driver
-without destabilizing the existing bounded primitive.
+The next implementation step is to replace the correctness-first
+`BMSSPQueue` internals with a block/list data structure that preserves the same
+tested semantic interface while moving closer to the paper's `Insert`,
+`BatchPrepend`, and `Pull` complexity. Keep `paper_bmssp` under its current
+experimental name until the data structure and partial-execution accounting are
+closer to the proof.

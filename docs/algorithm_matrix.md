@@ -9,7 +9,8 @@
 | Bellman-Ford | yes | yes for negative weights | repeated relaxation | slow |
 | ALT | yes | no | A* with landmark lower bounds | preprocessing and landmark selection |
 | Contraction Hierarchies | yes, small-graph educational | no | shortcuts + upward bidirectional search | contraction order and witness search complexity |
-| Bounded multi-source primitive | yes | no | bounded frontier expansion | not full BMSSP theorem |
+| Bounded multi-source primitive | yes | no | bounded frontier expansion with explicit frontier labels | not full BMSSP theorem |
+| Paper-shaped BMSSP scaffold | experimental correctness scaffold | no | shared labels, pivots, base cases, queue pulls, derived paper parameters | not the paper's asymptotic data structure |
 | Frontier partition SSSP | experimental | no | expanding bounded frontiers | not a published algorithm implementation |
 | Incomplete-vertex index | experimental helper | no | boundary labels into unresolved vertices | not full 2026 machinery |
 | Thorup-like lab | scaffold + baseline | no | integer component hierarchy + radix baseline | not full Thorup algorithm |
