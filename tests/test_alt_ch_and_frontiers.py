@@ -620,3 +620,20 @@ def test_johnson_sssp_detects_negative_cycle() -> None:
         pass
     else:
         raise AssertionError("negative cycle was not detected")
+
+
+def test_johnson_sssp_ignores_unreachable_negative_cycle() -> None:
+    graph = Graph.from_edges(
+        [
+            (0, 1, 2.0),
+            (2, 3, -1.0),
+            (3, 2, -1.0),
+        ],
+        directed=True,
+    )
+    for node in range(4):
+        graph.add_node(node)
+
+    result = johnson_sssp(graph, 0)
+
+    assert_same_distances(result.distances, bellman_ford(graph, 0).distances)
