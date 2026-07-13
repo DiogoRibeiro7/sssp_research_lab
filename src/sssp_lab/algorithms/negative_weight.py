@@ -8,6 +8,7 @@ that can be used while implementing the full paper.
 from __future__ import annotations
 
 import random
+from collections import deque
 from dataclasses import dataclass
 
 from sssp_lab.algorithms.bellman_ford import bellman_ford
@@ -109,6 +110,29 @@ def _graph_from_edges_with_nodes(nodes: frozenset[Node], edges: tuple[Edge, ...]
     return graph
 
 
+def _source_reachable_nodes(graph: Graph, source: Node) -> frozenset[Node]:
+    graph.require_node(source)
+    reachable: set[Node] = {source}
+    queue: deque[Node] = deque([source])
+    while queue:
+        node = queue.popleft()
+        for edge in graph.neighbors(node):
+            if edge.target not in reachable:
+                reachable.add(edge.target)
+                queue.append(edge.target)
+    return frozenset(reachable)
+
+
+def _reachable_subgraph(graph: Graph, source: Node) -> Graph:
+    reachable = _source_reachable_nodes(graph, source)
+    edges = tuple(
+        edge
+        for edge in graph.iter_edges()
+        if edge.source in reachable and edge.target in reachable
+    )
+    return _graph_from_edges_with_nodes(reachable, edges)
+
+
 def johnson_potentials(graph: Graph, *, stats: OperationStats | None = None) -> PotentialResult:
     """Compute Johnson potentials and a non-negative reweighted graph.
 
@@ -153,9 +177,11 @@ def johnson_sssp(
     """
 
     graph.require_node(source)
-    potential_result = johnson_potentials(graph, stats=stats)
+    reachable_graph = _reachable_subgraph(graph, source)
+    potential_result = johnson_potentials(reachable_graph, stats=stats)
     weighted = dijkstra(potential_result.reweighted_graph, source, stats=stats)
-    distances: dict[Node, float] = {}
+    distances: dict[Node, float] = {node: float("inf") for node in graph.nodes}
+    predecessors: dict[Node, Node | None] = {node: None for node in graph.nodes}
     for node, distance in weighted.distances.items():
         if distance == float("inf"):
             distances[node] = float("inf")
@@ -165,7 +191,8 @@ def johnson_sssp(
                 - potential_result.potentials[source]
                 + potential_result.potentials[node]
             )
-    return PathResult(source=source, distances=distances, predecessors=weighted.predecessors)
+        predecessors[node] = weighted.predecessors[node]
+    return PathResult(source=source, distances=distances, predecessors=predecessors)
 
 
 def negative_weight_reference_sssp(
