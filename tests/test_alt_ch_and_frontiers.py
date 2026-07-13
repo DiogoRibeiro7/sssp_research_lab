@@ -12,7 +12,7 @@ from sssp_lab.algorithms.alt import (
     random_landmarks,
 )
 from sssp_lab.algorithms.bellman_ford import NegativeCycleError, bellman_ford
-from sssp_lab.algorithms.bmssp import bounded_multi_source_sssp, recursive_bmssp
+from sssp_lab.algorithms.bmssp import BMSSPQueue, bounded_multi_source_sssp, recursive_bmssp
 from sssp_lab.algorithms.contraction_hierarchies import (
     build_ch_index,
     ch_query,
@@ -23,7 +23,11 @@ from sssp_lab.algorithms.contraction_hierarchies import (
 )
 from sssp_lab.algorithms.delta_stepping import delta_stepping
 from sssp_lab.algorithms.dijkstra_binary_heap import dijkstra
-from sssp_lab.algorithms.frontier_sssp import build_incomplete_vertex_index, frontier_partition_sssp
+from sssp_lab.algorithms.frontier_sssp import (
+    bounded_exploration_round,
+    build_incomplete_vertex_index,
+    frontier_partition_sssp,
+)
 from sssp_lab.algorithms.negative_weight import (
     check_against_bellman_ford,
     decompose_by_edge_sign,
@@ -53,6 +57,22 @@ def test_alt_query_matches_dijkstra() -> None:
     assert distance == dijkstra(graph, 0).distances[4]
     assert path[0] == 0
     assert path[-1] == 4
+
+
+def test_alt_query_rejects_index_from_different_graph() -> None:
+    graph = Graph.from_edges(
+        [(0, 1, 1.0), (1, 2, 1.0), (0, 2, 100.0)],
+        directed=True,
+    )
+    stale_index_graph = Graph.from_edges([(0, 1, 0.0), (0, 2, 100.0)], directed=True)
+    index = build_alt_index(stale_index_graph, landmarks=[0])
+
+    try:
+        alt_query(graph, 0, 2, index)
+    except ValueError as exc:
+        assert str(exc) == "ALT index was built for a different graph"
+    else:
+        raise AssertionError("stale ALT index was accepted")
 
 
 def _grid_graph(width: int, height: int, *, directed: bool) -> Graph:
@@ -236,6 +256,67 @@ def test_bounded_multi_source_sssp_exposes_frontier() -> None:
     assert 2 in result.frontier
 
 
+def test_bmssp_queue_insert_pull_and_duplicate_keys() -> None:
+    queue = BMSSPQueue()
+
+    assert not queue
+    assert queue.pull(2) == (frozenset(), float("inf"))
+
+    queue.insert(3, 5.0)
+    queue.insert(1, 2.0)
+    queue.insert(2, 4.0)
+    queue.insert(3, 1.0)
+    queue.insert(2, 9.0)
+
+    assert len(queue) == 3
+    pulled, next_bound = queue.pull(2)
+    assert pulled == frozenset({1, 3})
+    assert next_bound == 4.0
+
+    pulled, next_bound = queue.pull(5)
+    assert pulled == frozenset({2})
+    assert next_bound == float("inf")
+    assert not queue
+
+
+def test_bmssp_queue_batch_prepend_keeps_smallest_labels() -> None:
+    queue = BMSSPQueue()
+    queue.insert(10, 10.0)
+    queue.insert(11, 12.0)
+
+    queue.batch_prepend({1: 3.0, 2: 4.0, 10: 2.0})
+
+    pulled, next_bound = queue.pull(3)
+    assert pulled == frozenset({1, 2, 10})
+    assert next_bound == 12.0
+
+
+def test_bmssp_queue_validates_operations() -> None:
+    queue = BMSSPQueue()
+
+    try:
+        queue.pull(0)
+    except ValueError as exc:
+        assert str(exc) == "limit must be positive"
+    else:
+        raise AssertionError("non-positive pull limit was accepted")
+
+    try:
+        queue.insert(1, float("inf"))
+    except ValueError as exc:
+        assert str(exc) == "label must be finite"
+    else:
+        raise AssertionError("infinite queue label was accepted")
+
+    queue.insert(1, 1.0)
+    try:
+        queue.batch_prepend({2: 2.0})
+    except ValueError as exc:
+        assert str(exc) == "batch-prepended labels must not exceed the current queue minimum"
+    else:
+        raise AssertionError("out-of-order batch prepend was accepted")
+
+
 def test_bounded_multi_source_debug_invariants() -> None:
     graph = Graph.from_edges([(0, 1, 1), (1, 2, 1), (0, 2, 5)], directed=True)
 
@@ -333,6 +414,23 @@ def test_recursive_bmssp_validates_options() -> None:
         pass
     else:
         raise AssertionError("invalid recursive BMSSP bound was accepted")
+
+
+def test_bounded_source_label_maps_report_missing_sources() -> None:
+    graph = Graph.from_edges([(0, 1, 1), (1, 2, 1)], directed=True)
+
+    for runner in [
+        lambda: bounded_multi_source_sssp(graph, {0, 1}, bound=3, source_distances={0: 0.0}),
+        lambda: recursive_bmssp(graph, {0, 1}, bound=3, source_distances={0: 0.0}),
+        lambda: bounded_exploration_round(graph, {1}, bound=3, global_distances={0: 0.0}),
+    ]:
+        try:
+            runner()
+        except ValueError as exc:
+            assert "must include every source" in str(exc)
+            assert "1" in str(exc)
+        else:
+            raise AssertionError("missing source label was accepted")
 
 
 def test_incomplete_vertex_index_tracks_boundary_labels() -> None:

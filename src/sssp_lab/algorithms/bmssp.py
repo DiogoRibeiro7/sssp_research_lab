@@ -49,6 +49,104 @@ class RecursiveBMSSPResult:
     levels: tuple[BMSSPLevel, ...]
 
 
+class BMSSPQueue:
+    """Correctness-first queue for paper-shaped BMSSP recursion.
+
+    The interface mirrors the paper operations that the full BMSSP driver will
+    need: insert/update one key, batch-prepend a group of smaller labels, and
+    pull the keys with the smallest labels. The implementation uses a heap plus
+    an active-label map, so it is not the paper's asymptotic block-list data
+    structure.
+    """
+
+    def __init__(self) -> None:
+        self._labels: dict[Node, float] = {}
+        self._heap: list[tuple[float, Node]] = []
+
+    def __bool__(self) -> bool:
+        return bool(self._labels)
+
+    def __len__(self) -> int:
+        return len(self._labels)
+
+    def insert(self, node: Node, label: Weight) -> None:
+        """Insert ``node`` with ``label``, keeping the smallest label per node."""
+
+        value = _validate_queue_label(label)
+        current = self._labels.get(node)
+        if current is not None and current <= value:
+            return
+        self._labels[node] = value
+        heapq.heappush(self._heap, (value, node))
+
+    def batch_prepend(self, labels: dict[Node, Weight]) -> None:
+        """Insert labels that should precede the queue's current minimum."""
+
+        updates: dict[Node, float] = {}
+        for node, label in labels.items():
+            value = _validate_queue_label(label)
+            current = self._labels.get(node)
+            if current is None or value < current:
+                updates[node] = value
+
+        if not updates:
+            return
+
+        current_min = self._peek_min()
+        if current_min < float("inf") and any(value > current_min for value in updates.values()):
+            raise ValueError("batch-prepended labels must not exceed the current queue minimum")
+
+        for node, value in updates.items():
+            self._labels[node] = value
+            heapq.heappush(self._heap, (value, node))
+
+    def pull(self, limit: int) -> tuple[frozenset[Node], float]:
+        """Remove up to ``limit`` keys with the smallest labels.
+
+        Returns:
+            The pulled node set and the smallest remaining label, or infinity
+            when the queue is empty.
+        """
+
+        if limit <= 0:
+            raise ValueError("limit must be positive")
+
+        pulled: set[Node] = set()
+        while len(pulled) < limit:
+            item = self._pop_active()
+            if item is None:
+                break
+            _, node = item
+            pulled.add(node)
+        return frozenset(pulled), self._peek_min()
+
+    def _peek_min(self) -> float:
+        while self._heap:
+            label, node = self._heap[0]
+            if self._labels.get(node) == label:
+                return label
+            heapq.heappop(self._heap)
+        return float("inf")
+
+    def _pop_active(self) -> tuple[float, Node] | None:
+        while self._heap:
+            label, node = heapq.heappop(self._heap)
+            if self._labels.get(node) != label:
+                continue
+            del self._labels[node]
+            return label, node
+        return None
+
+
+def _validate_queue_label(label: Weight) -> float:
+    if not isinstance(label, (int, float)):
+        raise TypeError("label must be numeric")
+    value = float(label)
+    if not isfinite(value):
+        raise ValueError("label must be finite")
+    return value
+
+
 def _check_bounded_invariants(result: BoundedMultiSourceResult) -> None:
     """Validate runtime invariants for bounded exploration."""
 
@@ -86,6 +184,17 @@ def _merge_result(
             global_predecessors[node] = result.predecessors[node]
 
 
+def _require_source_labels(
+    sources: set[Node] | frozenset[Node],
+    labels: dict[Node, Weight],
+    *,
+    label_name: str,
+) -> None:
+    missing = sorted(source for source in sources if source not in labels)
+    if missing:
+        raise ValueError(f"{label_name} must include every source; missing {missing!r}")
+
+
 def bounded_multi_source_sssp(
     graph: Graph,
     sources: set[Node] | frozenset[Node],
@@ -116,6 +225,8 @@ def bounded_multi_source_sssp(
     graph.require_non_negative_weights()
     for source in sources:
         graph.require_node(source)
+    if source_distances is not None:
+        _require_source_labels(sources, source_distances, label_name="source_distances")
 
     distances: dict[Node, Weight] = {node: float("inf") for node in graph.nodes}
     predecessors: dict[Node, Node | None] = {node: None for node in graph.nodes}
@@ -195,6 +306,8 @@ def recursive_bmssp(
     graph.require_non_negative_weights()
     for source in sources:
         graph.require_node(source)
+    if source_distances is not None:
+        _require_source_labels(sources, source_distances, label_name="source_distances")
 
     initial_distances = (
         {source: 0.0 for source in sources}
