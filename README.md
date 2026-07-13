@@ -44,11 +44,21 @@ Main targets:
 
 ## Install
 
-For runtime use:
+For runtime use, use Python 3.10 through 3.12.
+
+macOS/Linux:
 
 ```bash
 python -m venv .venv
 . .venv/bin/activate
+python -m pip install -e .
+```
+
+Windows PowerShell:
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
 python -m pip install -e .
 ```
 
