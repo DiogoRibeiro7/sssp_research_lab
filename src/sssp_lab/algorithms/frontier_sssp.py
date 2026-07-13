@@ -128,6 +128,9 @@ def bounded_exploration_round(
 ) -> BoundedMultiSourceResult:
     """Run one bounded exploration round from absolute source labels."""
 
+    missing = sorted(source for source in sources if source not in global_distances)
+    if missing:
+        raise ValueError(f"global_distances must include every source; missing {missing!r}")
     return bounded_multi_source_sssp(
         graph,
         sources,

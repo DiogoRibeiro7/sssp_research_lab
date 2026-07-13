@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from sssp_lab.algorithms.dijkstra_binary_heap import dijkstra
 from sssp_lab.graph import Graph, Node
 
+GraphSignature = tuple[bool, tuple[Node, ...], tuple[tuple[Node, Node, float], ...]]
+
 
 @dataclass(frozen=True, slots=True)
 class ALTIndex:
@@ -23,6 +25,7 @@ class ALTIndex:
     landmarks: tuple[Node, ...]
     from_landmark: dict[Node, dict[Node, float]]
     to_landmark: dict[Node, dict[Node, float]]
+    graph_signature: GraphSignature
 
 
 @dataclass(slots=True)
@@ -215,6 +218,19 @@ def grid_corner_landmarks(*, width: int, height: int) -> tuple[Node, ...]:
     )
 
 
+def _graph_signature(graph: Graph) -> GraphSignature:
+    return (
+        graph.directed,
+        tuple(sorted(graph.nodes)),
+        tuple(
+            sorted(
+                (edge.source, edge.target, edge.weight)
+                for edge in graph.iter_edges()
+            )
+        ),
+    )
+
+
 def build_alt_index(graph: Graph, landmarks: list[Node] | tuple[Node, ...]) -> ALTIndex:
     """Precompute landmark distances for ALT."""
 
@@ -232,6 +248,7 @@ def build_alt_index(graph: Graph, landmarks: list[Node] | tuple[Node, ...]) -> A
         landmarks=tuple(landmarks),
         from_landmark=from_landmark,
         to_landmark=to_landmark,
+        graph_signature=_graph_signature(graph),
     )
 
 
@@ -266,6 +283,8 @@ def alt_query(
     graph.require_non_negative_weights()
     graph.require_node(source)
     graph.require_node(target)
+    if index.graph_signature != _graph_signature(graph):
+        raise ValueError("ALT index was built for a different graph")
 
     distances: dict[Node, float] = {node: float("inf") for node in graph.nodes}
     predecessors: dict[Node, Node | None] = {node: None for node in graph.nodes}
