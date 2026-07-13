@@ -741,6 +741,44 @@ def test_paper_bmssp_matches_bounded_multi_source_on_layered_tie_graphs() -> Non
         assert result.boundary == float("inf")
 
 
+def test_paper_bmssp_preserves_inf_for_disconnected_vertices() -> None:
+    graph = Graph.from_edges(
+        [
+            (0, 1, 2.0),
+            (1, 2, 3.0),
+            (3, 4, 1.0),
+            (4, 5, 1.0),
+        ],
+        directed=True,
+    )
+    graph.add_node(6)
+    labels = {node: float("inf") for node in graph.nodes}
+    predecessors = {node: None for node in graph.nodes}
+    labels[0] = 0.0
+
+    result = paper_bmssp(
+        graph,
+        {0},
+        bound=float("inf"),
+        level=3,
+        labels=labels,
+        predecessors=predecessors,
+        config=BMSSPConfig(k=2, child_limit=2, work_limit=16),
+        debug=True,
+    )
+    expected = bounded_multi_source_sssp(graph, {0}, bound=float("inf"))
+
+    assert_same_distances(labels, expected.distances)
+    assert result.complete_vertices == frozenset({0, 1, 2})
+    assert labels[3] == float("inf")
+    assert labels[4] == float("inf")
+    assert labels[5] == float("inf")
+    assert labels[6] == float("inf")
+    assert predecessors[3] is None
+    assert predecessors[6] is None
+    assert not result.partial
+
+
 def test_bounded_multi_source_debug_invariants() -> None:
     graph = Graph.from_edges([(0, 1, 1), (1, 2, 1), (0, 2, 5)], directed=True)
 
