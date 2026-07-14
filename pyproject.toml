@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sssp-research-lab"
-version = "1.0.0"
+version = "1.1.0"
 description = "Implementable shortest-path algorithms inspired by sorting-barrier SSSP research."
 authors = ["Diogo Ribeiro <dfr@esmad.ipp.pt>"]
 readme = "README.md"

@@ -6,6 +6,8 @@ validation changes, and benchmark-relevant implementation work.
 
 ## Unreleased
 
+## 1.1.0 - 2026-07-13
+
 ### Added
 
 - `sssp-benchmark --output` now writes JSON, CSV, and markdown benchmark
@@ -14,6 +16,12 @@ validation changes, and benchmark-relevant implementation work.
   Hierarchies, negative-weight baselines, and Thorup-like integer scaffolding.
 - Operation counters for CH queries, frontier partitioning, the Thorup-like
   integer baseline, and optional Rust single-source wrappers.
+- Correctness-first paper-shaped BMSSP scaffold pieces: `BMSSPQueue`,
+  `find_pivots`, `bmssp_base_case`, `paper_bmssp`, `BMSSPParameters`, and
+  `derive_bmssp_parameters`.
+- BMSSP coverage for randomized directed graphs, layered ties, disconnected
+  vertices, adversarial bound thresholds, derived parameters, and debug
+  predecessor-chain invariants.
 
 ### Changed
 
@@ -27,6 +35,8 @@ validation changes, and benchmark-relevant implementation work.
   development/test tooling.
 - Restored the Zenodo DOI placeholder in the README badge and BibTeX citation
   so the minted record id can be filled in after archival.
+- README, algorithm matrix, BMSSP implementation notes, and roadmap now reflect
+  the current BMSSP checkpoint and remaining proof-level gaps.
 
 ## 1.0.0 - 2026-07-11
 

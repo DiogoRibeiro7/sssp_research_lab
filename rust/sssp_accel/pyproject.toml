@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "sssp-research-lab-accel"
-version = "1.0.0"
+version = "1.1.0"
 requires-python = ">=3.10,<3.13"
 description = "Optional Rust acceleration kernels for sssp-research-lab"
 

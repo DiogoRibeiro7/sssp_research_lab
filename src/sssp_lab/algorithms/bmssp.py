@@ -63,7 +63,7 @@ class BMSSPParameters:
 
         if level < 0:
             raise ValueError("level must be non-negative")
-        return 2 ** (level * self.t)
+        return int(2 ** (level * self.t))
 
     def child_limit(self, level: int) -> int:
         """Return the recursive child source limit for ``level``."""
@@ -504,7 +504,7 @@ def paper_bmssp(
         depth: int,
     ) -> PaperBMSSPResult:
         if active_level == 0:
-            complete_here: set[Node] = set()
+            base_complete_here: set[Node] = set()
             boundary = active_bound
             for source in sorted(active_sources):
                 source_boundary, settled = bmssp_base_case(
@@ -518,12 +518,12 @@ def paper_bmssp(
                     stats=counters,
                 )
                 boundary = min(boundary, source_boundary)
-                complete_here.update(settled)
+                base_complete_here.update(settled)
             level_record = BMSSPLevel(
                 depth=depth,
                 bound=active_bound,
                 sources=active_sources,
-                settled=frozenset(complete_here),
+                settled=frozenset(base_complete_here),
                 frontier=frozenset(
                     node for node in graph.nodes if labels[node] >= boundary and labels[node] < active_bound
                 ),
@@ -531,7 +531,7 @@ def paper_bmssp(
             levels.append(level_record)
             return PaperBMSSPResult(
                 boundary=boundary,
-                complete_vertices=frozenset(complete_here),
+                complete_vertices=frozenset(base_complete_here),
                 partial=boundary < active_bound,
                 levels=tuple(levels),
             )

@@ -229,8 +229,8 @@ If you use this repository in academic work, cite the software metadata in
   title     = {{SSSP Research Lab: Implementable Shortest-Path Algorithms
                Inspired by Sorting-Barrier SSSP Research}},
   year      = {2026},
-  version   = {1.0.0},
-  doi       = {10.5281/zenodo.21302833},
+  version   = {1.1.0},
+  doi       = {10.5281/zenodo.21302832},
   url       = {https://github.com/DiogoRibeiro7/sssp_research_lab}
 }
 ```
