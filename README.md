@@ -197,6 +197,7 @@ Primary paper notes and references:
 - [docs/papers.md](docs/papers.md)
 - [docs/bmssp_implementation_notes.md](docs/bmssp_implementation_notes.md)
 - [docs/faster_directed_sssp_notes.md](docs/faster_directed_sssp_notes.md)
+- [ROADMAP.md](ROADMAP.md)
 - [docs/benchmarking.md](docs/benchmarking.md)
 - [references.bib](references.bib)
 
